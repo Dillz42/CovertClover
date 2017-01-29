@@ -262,6 +262,9 @@ namespace CovertClover
             title.Click += ThreadButton_Click;
             setGrid(title, colSpan: threadGrid.ColumnDefinitions.Count);
             threadGrid.Children.Add(title);
+            ToolTip titleToolTip = new ToolTip();
+            titleToolTip.Content = title.Content;
+            ToolTipService.SetToolTip(title, titleToolTip);
 
             autoReload.Content = "AutoReload";
             autoReload.IsChecked = true;
