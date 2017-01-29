@@ -232,7 +232,7 @@ namespace CovertClover
             threadButton.Content = threadStackPanel;
             threadButton.Click += ThreadButton_Click;
             threadButton.DataContext = post;
-            threadButton.MaxWidth = 150;
+            threadButton.MaxWidth = Width * .33;
             ThreadWatchList.Children.Add(threadButton);
         }
     }
