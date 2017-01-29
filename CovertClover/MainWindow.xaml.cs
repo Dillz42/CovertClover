@@ -84,10 +84,17 @@ namespace CovertClover
                 {
                     break;
                 }
-                catch (Exception)
+                catch (Exception exception)
                 {
-                    System.Diagnostics.Debugger.Break();
-                    throw;
+                    if (exception.Message == "404-NotFound")
+                    {
+                        continue;
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debugger.Break();
+                        throw; 
+                    }
                 }
             }
         }
@@ -127,9 +134,33 @@ namespace CovertClover
             }
         }
 
-        private async Task<FrameworkElement> convertPostToStackPanel(CloverLibrary.ChanPost post)
+        private void setGrid(UIElement element, int column = 0, int row = 0, int colSpan = 1, int rowSpan = 1)
         {
-            StackPanel retVal = new StackPanel();
+            Grid.SetColumn(element, column);
+            Grid.SetRow(element, row);
+            Grid.SetColumnSpan(element, colSpan);
+            Grid.SetRowSpan(element, rowSpan);
+        }
+
+        private async Task<UIElement> convertPostToStackPanel(CloverLibrary.ChanPost post)
+        {
+            Grid retVal = new Grid();
+            ColumnDefinition col1 = new ColumnDefinition();
+            col1.Width = GridLength.Auto;
+            retVal.ColumnDefinitions.Add(col1);
+            ColumnDefinition col2 = new ColumnDefinition();
+            col2.Width = new GridLength(1, GridUnitType.Star);
+            retVal.ColumnDefinitions.Add(col2);
+            retVal.RowDefinitions.Add(new RowDefinition());
+            retVal.RowDefinitions.Add(new RowDefinition());
+            retVal.RowDefinitions.Add(new RowDefinition());
+
+            TextBlock textBlockSubject = new TextBlock();
+            textBlockSubject.Text = post.board + "/" + post.no + ((post.sub == "") ? ("") : (" - " + post.sub)) +
+                " - R: " + post.replies + " / I: " + post.images;
+            textBlockSubject.TextWrapping = TextWrapping.Wrap;
+            setGrid(textBlockSubject, colSpan: 2);
+            retVal.Children.Add(textBlockSubject);
 
             await post.loadThumb(tokenSource.Token);
 
@@ -174,18 +205,13 @@ namespace CovertClover
             ToolTipService.SetShowDuration(img, int.MaxValue);
             ToolTipService.SetInitialShowDelay(img, 0);
             ToolTipService.SetToolTip(img, imageToolTip);
-
-            TextBlock textBlockSubject = new TextBlock();
-            textBlockSubject.Text = post.board + "/" + post.no + ((post.sub == "") ? ("") : (" - " + post.sub)) +
-                " - R: " + post.replies + " / I: " + post.images;
-            textBlockSubject.TextWrapping = TextWrapping.Wrap;
+            setGrid(img, row: 1);
+            retVal.Children.Add(img);
 
             TextBlock textBlockComment = new TextBlock();
             textBlockComment.Text = post.com;
             textBlockComment.TextWrapping = TextWrapping.Wrap;
-
-            retVal.Children.Add(textBlockSubject);
-            retVal.Children.Add(img);
+            setGrid(textBlockComment, column: 1, row: 1);
             retVal.Children.Add(textBlockComment);
             
             if (post.resto == 0)
@@ -194,6 +220,7 @@ namespace CovertClover
 
                 button.HorizontalContentAlignment = HorizontalAlignment.Left;
                 button.Content = retVal;
+                button.Margin = new Thickness(2);
                 button.Click += (cs, ce) =>
                 {
                     addThreadWatch(post);
@@ -204,6 +231,7 @@ namespace CovertClover
             else
             {
                 Separator seperator = new Separator();
+                setGrid(seperator, row: 2, colSpan: 2);
                 retVal.Children.Add(seperator);
 
                 return retVal;
@@ -213,26 +241,60 @@ namespace CovertClover
         private void addThreadWatch(CloverLibrary.ChanPost post)
         {
             Button threadButton = new Button();
-            StackPanel threadStackPanel = new StackPanel();
-
-            TextBlock title = new TextBlock();
-            title.Text = post.board + "/" + post.no + "-" + post.sub;
-            title.TextWrapping = TextWrapping.Wrap;
-            threadStackPanel.Children.Add(title);
-
+            Grid threadGrid = new Grid();
+            Button title = new Button();
             CheckBox autoReload = new CheckBox();
+            CheckBox autoSave = new CheckBox();
+            Button removeButton = new Button();
+            
+            threadGrid.ColumnDefinitions.Add(new ColumnDefinition());
+            threadGrid.ColumnDefinitions.Add(new ColumnDefinition());
+            threadGrid.ColumnDefinitions.Add(new ColumnDefinition());
+            threadGrid.RowDefinitions.Add(new RowDefinition());
+            threadGrid.RowDefinitions.Add(new RowDefinition());
+            threadGrid.RowDefinitions.Add(new RowDefinition());
+            threadGrid.ColumnDefinitions[0].Width = GridLength.Auto;
+            threadGrid.ColumnDefinitions[1].Width = new GridLength(1, GridUnitType.Star);
+            threadGrid.ColumnDefinitions[2].Width = GridLength.Auto;
+
+            title.Content = post.board + "/" + post.no + " - " + post.sub;
+            title.HorizontalContentAlignment = HorizontalAlignment.Left;
+            title.Click += ThreadButton_Click;
+            setGrid(title, colSpan: threadGrid.ColumnDefinitions.Count);
+            threadGrid.Children.Add(title);
+
             autoReload.Content = "AutoReload";
             autoReload.IsChecked = true;
-            autoReload.Checked += (checkedSender, checkedEventArgs) =>
-            {
-                checkedEventArgs.Handled = true;
-            };
-            threadStackPanel.Children.Add(autoReload);
+            autoReload.Unchecked += (s, e) => { autoSave.IsEnabled = false; autoSave.IsChecked = false; };
+            autoReload.Checked += (s, e) => { autoSave.IsEnabled = true; };
+            setGrid(autoReload, row: 1);
+            threadGrid.Children.Add(autoReload);
 
-            threadButton.Content = threadStackPanel;
-            threadButton.Click += ThreadButton_Click;
+            autoSave.Content = "Auto-save images";
+            autoSave.IsChecked = false;
+            setGrid(autoSave, row: 2);
+            threadGrid.Children.Add(autoSave);
+
+            removeButton.Content = "Remove";
+            removeButton.Click += (s, e) => 
+            {
+                ThreadWatchList.Children.Remove(threadButton);
+                e.Handled = true;
+            };
+            setGrid(removeButton, column: 2, row: 2);
+            threadGrid.Children.Add(removeButton);
+
+            Rectangle rectangle = new Rectangle();
+            rectangle.Fill = Brushes.Blue;
+            setGrid(rectangle, column: 1, row: 1);
+            threadGrid.Children.Add(rectangle); ;
+
+            threadButton.Content = threadGrid;
+            threadButton.Margin = new Thickness(2);
+            threadButton.Padding = new Thickness(5);
             threadButton.DataContext = post;
-            threadButton.MaxWidth = Width * .33;
+            threadButton.HorizontalContentAlignment = HorizontalAlignment.Stretch;
+            threadGrid.MinWidth = 260;
             ThreadWatchList.Children.Add(threadButton);
         }
     }

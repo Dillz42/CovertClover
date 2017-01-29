@@ -10,8 +10,8 @@
     <Grid Name="MainGrid">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="auto"/>
-            <ColumnDefinition Width="*"/>
-            <ColumnDefinition Width="auto"/>
+            <ColumnDefinition Width="75*"/>
+            <ColumnDefinition Width="25*"/>
         </Grid.ColumnDefinitions>
         <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Hidden">
             <StackPanel Name="BoardList" Orientation="Vertical">
@@ -25,9 +25,9 @@
             <StackPanel Name="ThreadList" Orientation="Vertical">
             </StackPanel>
         </ScrollViewer>
-        <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Hidden">
+        <ScrollViewer Grid.Column="2">
             <StackPanel Name="ThreadWatchList" Orientation="Vertical">
-                <TextBlock Text="Watch List"/>
+                <TextBlock Text="Watch List" HorizontalAlignment="Center"/>
                 <!--<Button Click="ThreadButton_Click">
                     ~null~
                 </Button>-->
