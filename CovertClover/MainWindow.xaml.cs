@@ -26,8 +26,6 @@ namespace CovertClover
         {
             InitializeComponent();
 
-            //CloverLibrary.Global.testDownload();
-
             Task<List<Tuple<string, string, string>>> boardListTask = CloverLibrary.Global.getBoardList();
             boardListTask.ContinueWith(t =>
             {
@@ -96,6 +94,11 @@ namespace CovertClover
 
         public async void ThreadButton_Click(object sender, RoutedEventArgs e)
         {
+            if (e.OriginalSource.GetType() != typeof(Button))
+            {
+                return;
+            }
+
             tokenSource.Cancel();
             tokenSource = new System.Threading.CancellationTokenSource();
 
@@ -193,11 +196,7 @@ namespace CovertClover
                 button.Content = retVal;
                 button.Click += (cs, ce) =>
                 {
-                    Button threadButton = new Button();
-                    threadButton.Content = post.board + "/" + post.no + "-" + post.sub;
-                    threadButton.Click += ThreadButton_Click;
-                    threadButton.DataContext = post;
-                    ThreadWatchList.Children.Add(threadButton);
+                    addThreadWatch(post);
                 };
 
                 return button; 
@@ -209,6 +208,32 @@ namespace CovertClover
 
                 return retVal;
             }
+        }
+
+        private void addThreadWatch(CloverLibrary.ChanPost post)
+        {
+            Button threadButton = new Button();
+            StackPanel threadStackPanel = new StackPanel();
+
+            TextBlock title = new TextBlock();
+            title.Text = post.board + "/" + post.no + "-" + post.sub;
+            title.TextWrapping = TextWrapping.Wrap;
+            threadStackPanel.Children.Add(title);
+
+            CheckBox autoReload = new CheckBox();
+            autoReload.Content = "AutoReload";
+            autoReload.IsChecked = true;
+            autoReload.Checked += (checkedSender, checkedEventArgs) =>
+            {
+                checkedEventArgs.Handled = true;
+            };
+            threadStackPanel.Children.Add(autoReload);
+
+            threadButton.Content = threadStackPanel;
+            threadButton.Click += ThreadButton_Click;
+            threadButton.DataContext = post;
+            threadButton.MaxWidth = 150;
+            ThreadWatchList.Children.Add(threadButton);
         }
     }
 }

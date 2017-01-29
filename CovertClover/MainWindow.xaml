@@ -8,16 +8,16 @@
         Title="MainWindow" Height="600" Width="800">
     <Grid Name="MainGrid">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="100"/>
+            <ColumnDefinition Width="auto"/>
             <ColumnDefinition Width="*"/>
-            <ColumnDefinition Width="100"/>
+            <ColumnDefinition Width="auto"/>
         </Grid.ColumnDefinitions>
-
         <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Hidden">
             <StackPanel Name="BoardList" Orientation="Vertical">
-                <Button Click="BoardButton_Click">
+                <TextBlock Text="Board List" HorizontalAlignment="Center"/>
+                <!--<Button Click="BoardButton_Click">
                     ~null~
-                </Button>
+                </Button>-->
             </StackPanel>
         </ScrollViewer>
         <ScrollViewer Grid.Column="1">
@@ -26,9 +26,10 @@
         </ScrollViewer>
         <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Hidden">
             <StackPanel Name="ThreadWatchList" Orientation="Vertical">
-                <Button Click="ThreadButton_Click">
+                <TextBlock Text="Watch List"/>
+                <!--<Button Click="ThreadButton_Click">
                     ~null~
-                </Button>
+                </Button>-->
             </StackPanel>
         </ScrollViewer>
     </Grid>
