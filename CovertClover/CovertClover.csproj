@@ -93,5 +93,11 @@
   <ItemGroup>
     <None Include="App.config" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\CloverLibrary\CloverLibrary.csproj">
+      <Project>{bfc53c18-a177-4402-88cc-e87e687e7309}</Project>
+      <Name>CloverLibrary</Name>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
