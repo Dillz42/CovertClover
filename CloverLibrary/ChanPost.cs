@@ -51,7 +51,15 @@ namespace CloverLibrary
         public string tag;
         public string semantic_url;
 
-        public List<int> replyList;
+        public List<int> replyList = new List<int>();
+        public void addReplyNum(int reply)
+        {
+            if (replyList.Contains(reply) == false)
+            {
+                replyList.Add(reply);
+            }
+        }
+        public SortedDictionary<int, ChanPost> replyPosts = new SortedDictionary<int, ChanPost>();
 
         public string thumbUrl;
         public string imageUrl;
@@ -104,7 +112,7 @@ namespace CloverLibrary
             last_modified = (int)(jsonObject["last_modified"] != null ? jsonObject["last_modified"] : 0);
             tag = (string)(jsonObject["tag"] != null ? jsonObject["tag"] : "");
             semantic_url = (string)(jsonObject["semantic_url"] != null ? jsonObject["semantic_url"] : "");
-
+            
             if (ext != "")
             {
                 thumbUrl = (Global.BASE_IMAGE_URL + board + "/" + tim + "s.jpg");
@@ -117,6 +125,14 @@ namespace CloverLibrary
                 imageUrl = "http://s.4cdn.org/image/fp/logo-transparent.png";
             }
 
+            com = com.Replace("<br>", "\n");
+            com = System.Net.WebUtility.HtmlDecode(com);
+
+        }
+
+        public void update(ChanPost newData)
+        {
+            filedeleted = newData.filedeleted;
         }
 
         public async Task loadImage(CancellationToken cancellationToken = new CancellationToken())

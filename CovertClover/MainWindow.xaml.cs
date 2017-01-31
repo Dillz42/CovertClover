@@ -113,10 +113,9 @@ namespace CovertClover
             ((ScrollViewer)ThreadList.Parent).ScrollToTop();
 
             CloverLibrary.ChanPost senderPost = ((CloverLibrary.ChanPost)((Button)sender).DataContext);
-            await CloverLibrary.Global.loadThread(senderPost.no, senderPost.board, tokenSource.Token);
+            await CloverLibrary.Global.loadThread(senderPost, tokenSource.Token);
 
-            List<CloverLibrary.ChanPost> postList = CloverLibrary.Global.getThread(senderPost.no, senderPost.board, tokenSource.Token);
-            foreach (CloverLibrary.ChanPost post in postList)
+            foreach (CloverLibrary.ChanPost post in senderPost.replyPosts.Values)
             {
                 try
                 {
@@ -154,10 +153,11 @@ namespace CovertClover
             retVal.RowDefinitions.Add(new RowDefinition());
             retVal.RowDefinitions.Add(new RowDefinition());
             retVal.RowDefinitions.Add(new RowDefinition());
+            retVal.RowDefinitions.Add(new RowDefinition());
 
             TextBlock textBlockSubject = new TextBlock();
             textBlockSubject.Text = post.board + "/" + post.no + ((post.sub == "") ? ("") : (" - " + post.sub)) +
-                " - R: " + post.replies + " / I: " + post.images;
+                " - " + post.now + (post.resto == 0 ? " - R: " + post.replies + " / I: " + post.images : "");
             textBlockSubject.TextWrapping = TextWrapping.Wrap;
             setGrid(textBlockSubject, colSpan: 2);
             retVal.Children.Add(textBlockSubject);
@@ -175,6 +175,19 @@ namespace CovertClover
             img.Source = source;
             img.MaxWidth = post.tn_w;
             img.HorizontalAlignment = HorizontalAlignment.Left;
+
+            if(post.replyList.Count > 0)
+            {
+                TextBlock replyTextBlock = new TextBlock();
+                replyTextBlock.Foreground = Brushes.Blue;
+                replyTextBlock.TextWrapping = TextWrapping.Wrap;
+                foreach (int replyFrom in post.replyList)
+                {
+                    replyTextBlock.Text += ">" + replyFrom + "  ";
+                }
+                setGrid(replyTextBlock, row: 1, colSpan: 2);
+                retVal.Children.Add(replyTextBlock);
+            }
 
             ToolTip imageToolTip = new ToolTip();
             StackPanel toolTipStackPanel = new StackPanel();
@@ -205,13 +218,32 @@ namespace CovertClover
             ToolTipService.SetShowDuration(img, int.MaxValue);
             ToolTipService.SetInitialShowDelay(img, 0);
             ToolTipService.SetToolTip(img, imageToolTip);
-            setGrid(img, row: 1);
+            setGrid(img, row: 2);
             retVal.Children.Add(img);
 
             TextBlock textBlockComment = new TextBlock();
-            textBlockComment.Text = post.com;
+            //textBlockComment.Text = post.com;
+            char[] delim = { '\n' };
+            string[] lines = post.com.Split(delim);
+            foreach (string line in lines)
+            {
+                if (line.StartsWith(">>"))
+                {
+                    Hyperlink hyperlink = new Hyperlink() { Foreground = Brushes.Blue, NavigateUri = new Uri("http://example.com") };
+                    hyperlink.Inlines.Add(line + "\n");
+                    hyperlink.RequestNavigate += (s, e) =>
+                    {
+                        
+                    };
+                    textBlockComment.Inlines.Add(hyperlink);
+                }
+                else
+                {
+                    textBlockComment.Inlines.Add(new Run(line + "\n"));
+                }
+            }
             textBlockComment.TextWrapping = TextWrapping.Wrap;
-            setGrid(textBlockComment, column: 1, row: 1);
+            setGrid(textBlockComment, column: 1, row: 2);
             retVal.Children.Add(textBlockComment);
             
             if (post.resto == 0)
@@ -231,7 +263,10 @@ namespace CovertClover
             else
             {
                 Separator seperator = new Separator();
-                setGrid(seperator, row: 2, colSpan: 2);
+                seperator.Foreground = Brushes.Blue;
+                seperator.Background = Brushes.Green;
+                seperator.BorderBrush = Brushes.Pink;
+                setGrid(seperator, row: 3, colSpan: 2);
                 retVal.Children.Add(seperator);
 
                 return retVal;
@@ -257,7 +292,10 @@ namespace CovertClover
             threadGrid.ColumnDefinitions[1].Width = new GridLength(1, GridUnitType.Star);
             threadGrid.ColumnDefinitions[2].Width = GridLength.Auto;
 
-            title.Content = post.board + "/" + post.no + " - " + post.sub;
+            title.Content = post.board + "/" + post.no + " - " + 
+                (post.sub == "" ? 
+                post.com.Substring(0, (post.com.Length > 50 ? 50 : post.com.Length)) : 
+                post.sub);
             title.HorizontalContentAlignment = HorizontalAlignment.Left;
             title.Click += ThreadButton_Click;
             setGrid(title, colSpan: threadGrid.ColumnDefinitions.Count);

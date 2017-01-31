@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
 using Newtonsoft.Json.Linq;
+using System.Text.RegularExpressions;
 
 namespace CloverLibrary
 {
@@ -14,7 +15,7 @@ namespace CloverLibrary
         public const string BASE_IMAGE_URL = "http://i.4cdn.org/";
         public const string DEFAULT_IMAGE = "http://s.4cdn.org/image/fp/logo-transparent.png";
 
-        private static SortedDictionary<int, ChanPost> postDictionary = new SortedDictionary<int, ChanPost>();
+        private static SortedDictionary<int, ChanPost> threadDictionary = new SortedDictionary<int, ChanPost>();
 
         public async static Task<List<Tuple<string, string, string>>> getBoardList(CancellationToken cancellationToken = new CancellationToken())
         {
@@ -47,9 +48,9 @@ namespace CloverLibrary
             {
                 foreach (JObject jsonThread in boardPage["threads"])
                 {
-                    if (postDictionary.ContainsKey((int)jsonThread["no"]) == false)
+                    if (threadDictionary.ContainsKey((int)jsonThread["no"]) == false)
                     {
-                        postDictionary.Add((int)jsonThread["no"], new ChanPost(jsonThread, board));
+                        threadDictionary.Add((int)jsonThread["no"], new ChanPost(jsonThread, board));
                     }
                 }
             }
@@ -59,7 +60,7 @@ namespace CloverLibrary
         {
             List<ChanPost> retVal = new List<ChanPost>();
 
-            foreach (var post in postDictionary)
+            foreach (var post in threadDictionary)
             {
                 if(cancellationToken.IsCancellationRequested)
                 {
@@ -74,17 +75,27 @@ namespace CloverLibrary
             return retVal;
         }
 
-        public async static Task loadThread(int threadNumber, string board = "b", CancellationToken cancellationToken = new CancellationToken())
+        public async static Task loadThread(ChanPost op, CancellationToken cancellationToken = new CancellationToken())
         {
-            string address = BASE_URL + board + "/thread/" + threadNumber + ".json";
+            string address = BASE_URL + op.board + "/thread/" + op.no + ".json";
             JObject jsonObject = (JObject)await WebTools.httpRequestParse(address, JObject.Parse);
 
-            foreach (JObject jsonThread in (JArray)jsonObject["posts"])
+            foreach (JObject jsonPost in (JArray)jsonObject["posts"])
             {
-                if (postDictionary.ContainsKey((int)jsonThread["no"]) == false)
+                ChanPost post = new ChanPost(jsonPost, op.board);
+                if (op.replyPosts.ContainsKey(post.no) == false)
                 {
-                    postDictionary.Add((int)jsonThread["no"], new ChanPost(jsonThread, board));
+                    op.replyPosts.Add(post.no, post);
                 }
+
+                Regex regex = new Regex("<a href=\"#p(?<reply>\\d+)\" class=\"quotelink\">>>\\d+</a>");
+                MatchCollection matches = regex.Matches(post.com);
+                foreach (Match match in matches)
+                {
+                    int replyTo = int.Parse(match.Groups["reply"].ToString());
+                    op.replyPosts[replyTo].addReplyNum(post.no);
+                }
+                post.com = regex.Replace(post.com, ">>$1");
             }
         }
 
@@ -92,7 +103,7 @@ namespace CloverLibrary
         {
             List<ChanPost> retVal = new List<ChanPost>();
 
-            foreach (var post in postDictionary)
+            foreach (var post in threadDictionary)
             {
                 if (cancellationToken.IsCancellationRequested)
                 {
