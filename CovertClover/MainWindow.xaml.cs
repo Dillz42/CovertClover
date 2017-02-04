@@ -299,7 +299,7 @@ namespace CovertClover
 
             title.Content = post.board + "/" + post.no + " - " + 
                 (post.sub == "" ? 
-                post.com.Substring(0, (post.com.Length > 50 ? 50 : post.com.Length)) : 
+                post.com.Substring(0, (post.com.Length > 50 ? 50 : post.com.Length)).Replace("\n", " ") : 
                 post.sub);
             title.HorizontalContentAlignment = HorizontalAlignment.Left;
             title.Click += ThreadButton_Click;
