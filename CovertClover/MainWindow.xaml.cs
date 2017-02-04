@@ -176,6 +176,7 @@ namespace CovertClover
             img.Source = source;
             img.MaxWidth = post.tn_w;
             img.HorizontalAlignment = HorizontalAlignment.Left;
+            img.VerticalAlignment = VerticalAlignment.Top;
 
             if(post.replyList.Count > 0)
             {
