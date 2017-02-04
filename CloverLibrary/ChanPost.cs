@@ -65,10 +65,28 @@ namespace CloverLibrary
         public string imageUrl;
         public byte[] imageData = null;
         public byte[] thumbData = null;
+        private bool _autoRefresh;
+        public bool autoRefresh {
+            get
+            {
+                return _autoRefresh;
+            }
+            set
+            {
+                if (autoRefreshThread.ThreadState != ThreadState.Running &&
+                    autoRefreshThread.ThreadState != ThreadState.Stopped)
+                    autoRefreshThread.Start();
+
+                _autoRefresh = value;
+            }
+        }
+        
+
+        private Thread autoRefreshThread;
 
         public ChanPost()
         {
-
+            
         }
         public ChanPost(JObject jsonObject, string board)
         {
@@ -127,6 +145,22 @@ namespace CloverLibrary
 
             com = com.Replace("<br>", "\n");
             com = System.Net.WebUtility.HtmlDecode(com);
+
+            if (resto == 0)
+            {
+                autoRefreshThread = new Thread(async () =>
+                    {
+                        while (true)
+                        {
+                            if (_autoRefresh)
+                            {
+                                System.Diagnostics.Debug.WriteLine("Loading thread " + no);
+                                await Global.loadThread(this);
+                            }
+                            await Task.Delay(10000);
+                        }
+                    });
+            }
         }
 
         public void update(ChanPost newData)

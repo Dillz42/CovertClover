@@ -86,16 +86,19 @@ namespace CloverLibrary
                 if (op.replyPosts.ContainsKey(post.no) == false)
                 {
                     op.replyPosts.Add(post.no, post);
+                    Regex regex = new Regex("<a href=\"#p(?<reply>\\d+)\" class=\"quotelink\">>>\\d+</a>");
+                    MatchCollection matches = regex.Matches(post.com);
+                    foreach (Match match in matches)
+                    {
+                        int replyTo = int.Parse(match.Groups["reply"].ToString());
+                        op.replyPosts[replyTo].addReplyNum(post.no);
+                    }
+                    post.com = regex.Replace(post.com, ">>$1");
                 }
-
-                Regex regex = new Regex("<a href=\"#p(?<reply>\\d+)\" class=\"quotelink\">>>\\d+</a>");
-                MatchCollection matches = regex.Matches(post.com);
-                foreach (Match match in matches)
+                else
                 {
-                    int replyTo = int.Parse(match.Groups["reply"].ToString());
-                    op.replyPosts[replyTo].addReplyNum(post.no);
+                    op.replyPosts[post.no].update(post);
                 }
-                post.com = regex.Replace(post.com, ">>$1");
             }
         }
 

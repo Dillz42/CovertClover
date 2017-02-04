@@ -26,7 +26,6 @@ namespace CovertClover
         public MainWindow()
         {
             InitializeComponent();
-
             Task<List<Tuple<string, string, string>>> boardListTask = CloverLibrary.Global.getBoardList();
             boardListTask.ContinueWith(t =>
             {
@@ -312,8 +311,8 @@ namespace CovertClover
 
             autoReload.Content = "AutoReload";
             autoReload.IsChecked = true;
-            autoReload.Unchecked += (s, e) => { autoSave.IsEnabled = false; autoSave.IsChecked = false; };
-            autoReload.Checked += (s, e) => { autoSave.IsEnabled = true; };
+            autoReload.Unchecked += (s, e) => { autoSave.IsEnabled = false; autoSave.IsChecked = false; post.autoRefresh = false; };
+            autoReload.Checked += (s, e) => { autoSave.IsEnabled = true; post.autoRefresh = true; };
             setGrid(autoReload, row: 1);
             threadGrid.Children.Add(autoReload);
 
