@@ -80,7 +80,17 @@ namespace CloverLibrary
                 _autoRefresh = value;
             }
         }
-        
+
+        public event EventHandler<UpdateThreadEventArgs> raiseUpdateThreadEvent;
+        protected virtual void OnRaiseUpdateThreadEvent(UpdateThreadEventArgs e)
+        {
+            EventHandler<UpdateThreadEventArgs> handler = raiseUpdateThreadEvent;
+            if(handler != null)
+            {
+                e.Message += " Testing events!";
+                handler(this, e);
+            }
+        }
 
         private Thread autoRefreshThread;
 
@@ -156,6 +166,7 @@ namespace CloverLibrary
                             {
                                 System.Diagnostics.Debug.WriteLine("Loading thread " + no);
                                 await Global.loadThread(this);
+                                OnRaiseUpdateThreadEvent(new UpdateThreadEventArgs("Hello World!"));
                             }
                             await Task.Delay(10000);
                         }
@@ -193,6 +204,21 @@ namespace CloverLibrary
                 return other.last_modified - last_modified;
             }
             return other.sticky - sticky;
+        }
+    }
+
+    public class UpdateThreadEventArgs : EventArgs
+    {
+        private string message;
+        public UpdateThreadEventArgs(string s)
+        {
+            message = s;
+        }
+
+        public string Message
+        {
+            get { return message; }
+            set { message = value; }
         }
     }
 }

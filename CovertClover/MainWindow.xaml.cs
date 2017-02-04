@@ -78,6 +78,7 @@ namespace CovertClover
             {
                 try
                 {
+                    post.raiseUpdateThreadEvent += HandleUpdateThreadEvent;
                     ThreadList.Children.Add(await convertPostToStackPanel(post));
                 }
                 catch (TaskCanceledException)
@@ -342,6 +343,11 @@ namespace CovertClover
             threadButton.HorizontalContentAlignment = HorizontalAlignment.Stretch;
             threadGrid.MinWidth = 260;
             ThreadWatchList.Children.Add(threadButton);
+        }
+
+        public void HandleUpdateThreadEvent(object sender, CloverLibrary.UpdateThreadEventArgs args)
+        {
+            
         }
     }
 }
