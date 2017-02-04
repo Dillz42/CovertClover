@@ -127,7 +127,6 @@ namespace CloverLibrary
 
             com = com.Replace("<br>", "\n");
             com = System.Net.WebUtility.HtmlDecode(com);
-
         }
 
         public void update(ChanPost newData)

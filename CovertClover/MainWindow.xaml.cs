@@ -13,6 +13,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 using System.Net;
+using System.Text.RegularExpressions;
 
 namespace CovertClover
 {
@@ -222,7 +223,6 @@ namespace CovertClover
             retVal.Children.Add(img);
 
             TextBlock textBlockComment = new TextBlock();
-            //textBlockComment.Text = post.com;
             char[] delim = { '\n' };
             string[] lines = post.com.Split(delim);
             foreach (string line in lines)
@@ -233,9 +233,14 @@ namespace CovertClover
                     hyperlink.Inlines.Add(line + "\n");
                     hyperlink.RequestNavigate += (s, e) =>
                     {
-                        
+
                     };
                     textBlockComment.Inlines.Add(hyperlink);
+                }
+                else if (Regex.Match(post.com, "<span class=\"quote\">(.*?)</span>").Success)
+                {
+                    Regex regex = new Regex("<span class=\"quote\">(.*?)</span>");
+                    textBlockComment.Inlines.Add(new Run(regex.Replace(line, "$1") + "\n") { Foreground = Brushes.ForestGreen });
                 }
                 else
                 {
