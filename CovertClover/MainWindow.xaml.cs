@@ -351,7 +351,7 @@ namespace CovertClover
             ToolTipService.SetToolTip(title, titleToolTip);
 
             autoReload.Content = "AutoReload";
-            autoReload.IsChecked = true;
+            autoReload.IsChecked = false;
             autoReload.Unchecked += (s, e) => { autoSave.IsEnabled = false; autoSave.IsChecked = false; post.autoRefresh = false; };
             autoReload.Checked += (s, e) => { autoSave.IsEnabled = true; post.autoRefresh = true; };
             setGrid(autoReload, row: 1);
@@ -359,6 +359,8 @@ namespace CovertClover
 
             autoSave.Content = "Auto-save images";
             autoSave.IsChecked = false;
+            autoSave.Unchecked += (s, e) => { post.saveImages = false; };
+            autoSave.Checked += (s, e) => { post.saveImages = true; };
             setGrid(autoSave, row: 2);
             threadGrid.Children.Add(autoSave);
 

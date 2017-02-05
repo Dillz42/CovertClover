@@ -10,8 +10,9 @@ namespace CloverLibrary
 {
     public class ChanPost : IComparable<ChanPost>
     {
+        public JObject json;
         public string board;
-
+        
         public int no;
         public int resto;
         public int sticky;
@@ -80,6 +81,25 @@ namespace CloverLibrary
                 _autoRefresh = value;
             }
         }
+        public bool _saveImages;
+        public bool saveImages
+        {
+            get
+            {
+                return _saveImages;
+            }
+            set
+            {
+                if(resto == 0)
+                {
+                    foreach (ChanPost replyPost in replyPosts.Values)
+                    {
+                        replyPost.saveImages = value;
+                    }
+                }
+                _saveImages = value;
+            }
+        }
 
         public event EventHandler<UpdateThreadEventArgs> raiseUpdateThreadEvent;
         protected virtual void OnRaiseUpdateThreadEvent(UpdateThreadEventArgs e)
@@ -100,6 +120,7 @@ namespace CloverLibrary
         }
         public ChanPost(JObject jsonObject, string board)
         {
+            json = jsonObject;
             this.board = board;
 
             no = (int)(jsonObject["no"] != null ? jsonObject["no"] : 0);
@@ -167,6 +188,7 @@ namespace CloverLibrary
                                 System.Diagnostics.Debug.WriteLine("Loading thread " + no);
                                 await Global.loadThread(this);
                                 OnRaiseUpdateThreadEvent(new UpdateThreadEventArgs("Hello World!"));
+                                await saveThread();
                             }
                             await Task.Delay(10000);
                         }
@@ -177,6 +199,38 @@ namespace CloverLibrary
         public void update(ChanPost newData)
         {
             filedeleted = newData.filedeleted;
+        }
+
+        public async Task saveThread(CancellationToken cancellationToken = new CancellationToken())
+        {
+            string dir = "D:\\Downloads\\PicsAndVids\\FromChan\\" + 
+                board + "-" + (resto == 0 ? no : resto) + "-" + semantic_url + "\\";
+
+            if (semantic_url != "" && System.IO.Directory.Exists(dir) == false)
+            {
+                System.IO.Directory.CreateDirectory(dir);
+            }
+
+            if (resto == 0)
+            {
+                foreach (ChanPost replyPost in replyPosts.Values)
+                {
+                    replyPost.saveImages = saveImages;
+                    replyPost.semantic_url = semantic_url;
+                    await replyPost.saveThread();
+                }
+                System.IO.File.WriteAllText(dir + "thread.json", json.ToString());
+            }
+
+            if (saveImages && ext != "")
+            {
+                string fullFileName = dir + Global.MakeSafeFilename(tim + "-" + filename + ext);
+                await loadImage(cancellationToken);
+                if (System.IO.File.Exists(fullFileName) == false)
+                {
+                    System.IO.File.WriteAllBytes(fullFileName, imageData);
+                } 
+            }
         }
 
         public async Task loadImage(CancellationToken cancellationToken = new CancellationToken())
