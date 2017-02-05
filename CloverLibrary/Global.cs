@@ -86,6 +86,9 @@ namespace CloverLibrary
                 if (op.replyPosts.ContainsKey(post.no) == false)
                 {
                     op.replyPosts.Add(post.no, post);
+                    jsonPost.Remove("last_replies");
+                    ((JArray)op.json["posts"]).Add(jsonPost);
+
                     Regex regex = new Regex("<a href=\"#p(?<reply>\\d+)\" class=\"quotelink\">>>\\d+</a>");
                     MatchCollection matches = regex.Matches(post.com);
                     foreach (Match match in matches)

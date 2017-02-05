@@ -120,7 +120,6 @@ namespace CloverLibrary
         }
         public ChanPost(JObject jsonObject, string board)
         {
-            json = jsonObject;
             this.board = board;
 
             no = (int)(jsonObject["no"] != null ? jsonObject["no"] : 0);
@@ -179,6 +178,9 @@ namespace CloverLibrary
 
             if (resto == 0)
             {
+                json = new JObject();
+                json.Add("posts", new JArray());
+
                 autoRefreshThread = new Thread(async () =>
                     {
                         while (true)
@@ -190,7 +192,7 @@ namespace CloverLibrary
                                 OnRaiseUpdateThreadEvent(new UpdateThreadEventArgs("Hello World!"));
                                 await saveThread();
                             }
-                            await Task.Delay(10000);
+                            await Task.Delay(30000);
                         }
                     });
             }
