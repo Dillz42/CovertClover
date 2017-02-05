@@ -211,7 +211,7 @@ namespace CovertClover
                 imageToolTipSource.EndInit();
                 imageToolTipSource.Freeze();
                 toolTipImage.Source = imageToolTipSource;
-                double workingHeight = SystemParameters.WorkArea.Height * .95;
+                double workingHeight = SystemParameters.WorkArea.Height * .85;
                 toolTipImage.MaxWidth = post.w > SystemParameters.WorkArea.Width ? SystemParameters.WorkArea.Width : post.w;
                 toolTipImage.MaxHeight = post.h > workingHeight ? workingHeight : post.h;
             };
