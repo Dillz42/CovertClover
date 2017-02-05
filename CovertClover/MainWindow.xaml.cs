@@ -238,17 +238,57 @@ namespace CovertClover
                     };
                     textBlockComment.Inlines.Add(hyperlink);
                 }
-                else if (Regex.Match(post.com, "<span class=\"quote\">(.*?)</span>").Success)
-                {
-                    Regex regex = new Regex("<span class=\"quote\">(.*?)</span>");
-                    textBlockComment.Inlines.Add(new Run(regex.Replace(line, "$1") + "\n") { Foreground = Brushes.ForestGreen });
-                }
                 else
                 {
-                    textBlockComment.Inlines.Add(new Run(line + "\n"));
+                    Regex regex = new Regex("(.*)<(\\w+).*?class=\"(\\w+)\">(.*?)</\\w+>(.*)");
+                    switch (regex.Replace(line, "$3"))
+                    {
+                        case "quote":
+                            textBlockComment.Inlines.Add(new Run(regex.Replace(line, "$1")));
+                            textBlockComment.Inlines.Add(new Run(regex.Replace(line, "$4"))
+                                { Foreground = Brushes.ForestGreen });
+                            textBlockComment.Inlines.Add(new Run(regex.Replace(line, "$5")));
+                            break;
+                        case "deadlink":
+                            textBlockComment.Inlines.Add(new Run(regex.Replace(line, "$1")));
+                            textBlockComment.Inlines.Add(new Run(regex.Replace(line, "$4"))
+                                { Foreground = Brushes.Blue, TextDecorations = TextDecorations.Strikethrough });
+                            textBlockComment.Inlines.Add(new Run(regex.Replace(line, "$5")));
+                            break;
+                        case "quotelink":
+                            textBlockComment.Inlines.Add(new Run(regex.Replace(line, "$1")));
+                            Hyperlink hyperlink = new Hyperlink() { Foreground = Brushes.Blue, NavigateUri = new Uri("http://example.com") };
+                            hyperlink.Inlines.Add(regex.Replace(line, "$4"));
+                            hyperlink.RequestNavigate += (s, e) =>
+                            {
+
+                            };
+                            textBlockComment.Inlines.Add(hyperlink);
+                            textBlockComment.Inlines.Add(new Run(regex.Replace(line, "$5")));
+                            break;
+                        default:
+                            textBlockComment.Inlines.Add(new Run(line));
+                            break;
+                    }
+                    textBlockComment.Inlines.Add(new Run("\n"));
                 }
+                
+                //else if (Regex.Match(line, "<span class=\"(\\w+)\">(.*?)</span>").Success)
+                //{
+                //    Regex regex = new Regex("<span class=\"(\\w+)\">(.*?)</span>");
+                //    switch (Regex.Replace(line, "<span class=\"(\\w+)\">(.*?)</span>", "$1"))
+                //    {
+                //        default:
+                //            break;
+                //    }
+                //    textBlockComment.Inlines.Add(new Run(regex.Replace(line, "$2") + "\n") { Foreground = Brushes.ForestGreen });
+                //}
+                //else
+                //{
+                //    textBlockComment.Inlines.Add(new Run(line + "\n"));
+                //}
             }
-            textBlockComment.TextWrapping = TextWrapping.Wrap;
+                textBlockComment.TextWrapping = TextWrapping.Wrap;
             setGrid(textBlockComment, column: 1, row: 2);
             retVal.Children.Add(textBlockComment);
             
