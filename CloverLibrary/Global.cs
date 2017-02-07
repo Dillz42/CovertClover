@@ -75,6 +75,42 @@ namespace CloverLibrary
             return retVal;
         }
 
+        public async static Task<ChanPost> loadThread(string board, int no, CancellationToken cancellationToken = new CancellationToken())
+        {
+            ChanPost retVal;
+
+            string address = BASE_URL + board + "/thread/" + no + ".json";
+            JObject jsonObject = (JObject)await WebTools.httpRequestParse(address, JObject.Parse);
+
+            retVal = new ChanPost((JObject)jsonObject["posts"][0], board);
+            
+            foreach (JObject jsonPost in (JArray)jsonObject["posts"])
+            {
+                ChanPost post = new ChanPost(jsonPost, board);
+                if (retVal.replyPosts.ContainsKey(post.no) == false)
+                {
+                    retVal.replyPosts.Add(post.no, post);
+                    jsonPost.Remove("last_replies");
+                    ((JArray)retVal.json["posts"]).Add(jsonPost);
+
+                    Regex regex = new Regex("<a href=\"#p(?<reply>\\d+)\" class=\"quotelink\">>>\\d+</a>");
+                    MatchCollection matches = regex.Matches(post.com);
+                    foreach (Match match in matches)
+                    {
+                        int replyTo = int.Parse(match.Groups["reply"].ToString());
+                        retVal.replyPosts[replyTo].addReplyNum(post.no);
+                    }
+                    post.com = regex.Replace(post.com, ">>$1");
+                }
+                else
+                {
+                    retVal.replyPosts[post.no].update(post);
+                }
+            }
+
+            return retVal;
+        }
+
         public async static Task loadThread(ChanPost op, CancellationToken cancellationToken = new CancellationToken())
         {
             string address = BASE_URL + op.board + "/thread/" + op.no + ".json";

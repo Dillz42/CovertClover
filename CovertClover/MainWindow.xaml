@@ -16,9 +16,7 @@
         <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Hidden">
             <StackPanel Name="BoardList" Orientation="Vertical">
                 <TextBlock Text="Board List" HorizontalAlignment="Center"/>
-                <!--<Button Click="BoardButton_Click">
-                    ~null~
-                </Button>-->
+                <Separator/>
             </StackPanel>
         </ScrollViewer>
         <ScrollViewer Grid.Column="1">
@@ -28,9 +26,15 @@
         <ScrollViewer Grid.Column="2">
             <StackPanel Name="ThreadWatchList" Orientation="Vertical">
                 <TextBlock Text="Watch List" HorizontalAlignment="Center"/>
-                <!--<Button Click="ThreadButton_Click">
-                    ~null~
-                </Button>-->
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBox Name="addThreadTextBox" Grid.Column="0">board/id</TextBox>
+                    <Button Grid.Column="1" Content="Add" Click="addThreadButton_Click"/>
+                </Grid>
+                <Separator/>
             </StackPanel>
         </ScrollViewer>
     </Grid>

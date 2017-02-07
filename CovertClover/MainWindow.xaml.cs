@@ -84,7 +84,7 @@ namespace CovertClover
                 try
                 {
                     post.raiseUpdateThreadEvent += HandleUpdateThreadEvent;
-                    ThreadList.Children.Add(await convertPostToStackPanel(post));
+                    ThreadList.Children.Add(await convertPostToUIElement(post));
                 }
                 catch (TaskCanceledException)
                 {
@@ -143,7 +143,7 @@ namespace CovertClover
             {
                 try
                 {
-                    ThreadList.Children.Add(await convertPostToStackPanel(post, tokenSource.Token));
+                    ThreadList.Children.Add(await convertPostToUIElement(post, tokenSource.Token));
                 }
                 catch (Exception ex)
                 {
@@ -160,6 +160,41 @@ namespace CovertClover
             }
         }
 
+        public async void addThreadButton_Click(object sender, RoutedEventArgs e)
+        {
+            Regex regex = new Regex("(\\w+)/(\\d+)");
+            if(regex.IsMatch(addThreadTextBox.Text))
+            {
+                MatchCollection matches = regex.Matches(addThreadTextBox.Text);
+                string newBoard = matches[0].Groups[1].ToString();
+                int no = int.Parse(matches[0].Groups[2].ToString());
+
+                CloverLibrary.ChanPost newPost;
+
+                try
+                {
+                    newPost = await CloverLibrary.Global.loadThread(newBoard, no, tokenSource.Token);
+                }
+                catch (Exception ex)
+                {
+                    if (ex is TaskCanceledException)
+                        return;
+                    else if (ex.Message == "404-NotFound")
+                    {
+                        MessageBox.Show("Thread not found!");
+                        return;
+                    }
+                    else
+                        throw;
+                }
+                addThreadWatch(newPost);
+            }
+            else
+            {
+                MessageBox.Show("Not implemented!");
+            }
+        }
+
         private void setGrid(UIElement element, int column = 0, int row = 0, int colSpan = 1, int rowSpan = 1)
         {
             Grid.SetColumn(element, column);
@@ -168,7 +203,7 @@ namespace CovertClover
             Grid.SetRowSpan(element, rowSpan);
         }
 
-        private async Task<UIElement> convertPostToStackPanel(CloverLibrary.ChanPost post, 
+        private async Task<UIElement> convertPostToUIElement(CloverLibrary.ChanPost post, 
             System.Threading.CancellationToken token = new System.Threading.CancellationToken())
         {
             Grid retVal = new Grid();
