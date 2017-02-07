@@ -96,6 +96,10 @@ namespace CovertClover
                     {
                         continue;
                     }
+                    //else if (exception is )
+                    //{
+
+                    //}
                     else
                     {
                         System.Diagnostics.Debugger.Break();
@@ -139,7 +143,7 @@ namespace CovertClover
             {
                 try
                 {
-                    ThreadList.Children.Add(await convertPostToStackPanel(post));
+                    ThreadList.Children.Add(await convertPostToStackPanel(post, tokenSource.Token));
                 }
                 catch (Exception ex)
                 {
@@ -164,7 +168,8 @@ namespace CovertClover
             Grid.SetRowSpan(element, rowSpan);
         }
 
-        private async Task<UIElement> convertPostToStackPanel(CloverLibrary.ChanPost post)
+        private async Task<UIElement> convertPostToStackPanel(CloverLibrary.ChanPost post, 
+            System.Threading.CancellationToken token = new System.Threading.CancellationToken())
         {
             Grid retVal = new Grid();
             ColumnDefinition col1 = new ColumnDefinition();
@@ -185,7 +190,14 @@ namespace CovertClover
             setGrid(textBlockSubject, colSpan: 2);
             retVal.Children.Add(textBlockSubject);
 
-            await post.loadThumb(tokenSource.Token);
+            try
+            {
+                await post.loadThumb(tokenSource.Token);
+            }
+            catch (System.Threading.Tasks.TaskCanceledException)
+            {
+                return retVal;
+            }
 
             BitmapImage source = new BitmapImage();
             source.BeginInit();

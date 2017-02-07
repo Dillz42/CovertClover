@@ -22,7 +22,7 @@ namespace CloverLibrary
                 {
                     return await response.Content.ReadAsByteArrayAsync();
                 }
-                else if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                else if (response.StatusCode == HttpStatusCode.NotFound)
                 {
                     throw new Exception("404-NotFound");
                 }
@@ -30,10 +30,19 @@ namespace CloverLibrary
             }
         }
 
+        private static int should404 = 0;
         public static async Task<string> httpRequest(string url,
             CancellationToken cancellationToken = new CancellationToken())
         {
             cancellationToken.ThrowIfCancellationRequested();
+
+            if(url.Contains("/thread/"))
+            {
+                if(should404++ % 10 == 0 && System.Diagnostics.Debugger.IsAttached)
+                {
+                    url = "http://google.com/404";
+                }
+            }
 
             using (var client = new System.Net.Http.HttpClient())
             {
@@ -42,7 +51,7 @@ namespace CloverLibrary
                 {
                     return await response.Content.ReadAsStringAsync();
                 }
-                else if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                else if (response.StatusCode == HttpStatusCode.NotFound)
                 {
                     throw new Exception("404-NotFound");
                 }

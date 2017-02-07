@@ -301,7 +301,7 @@ namespace CloverLibrary
                 }
                 catch (TaskCanceledException)
                 {
-
+                    throw;
                 }
                 catch (Exception e)
                 {
