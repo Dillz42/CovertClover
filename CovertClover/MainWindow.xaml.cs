@@ -17,9 +17,6 @@ using System.Text.RegularExpressions;
 
 namespace CovertClover
 {
-    /// <summary>
-    /// Interaction logic for MainWindow.xaml
-    /// </summary>
     public partial class MainWindow : Window
     {
         System.Threading.CancellationTokenSource tokenSource = new System.Threading.CancellationTokenSource();
@@ -471,10 +468,23 @@ namespace CovertClover
         {
             CloverLibrary.ChanPost senderPost = (CloverLibrary.ChanPost)sender;
 
-            switch (args.Message)
+            switch (args.updateEvent)
             {
-                case "404-NotFound":
+                case CloverLibrary.UpdateThreadEventArgs.UpdateEvent.unknown:
+                    MessageBox.Show("Unknown event!");
+                    System.Diagnostics.Debugger.Break();
+                    break;
+                case CloverLibrary.UpdateThreadEventArgs.UpdateEvent.thread404:
                     thread404(senderPost);
+                    break;
+                case CloverLibrary.UpdateThreadEventArgs.UpdateEvent.newPosts:
+                    foreach (CloverLibrary.ChanPost post in args.postList)
+                    {
+                        ThreadList.Dispatcher.BeginInvoke((Action)(async () =>
+                        {
+                            ThreadList.Children.Add(await convertPostToUIElement(post));
+                        }));
+                    }
                     break;
                 default:
                     break;

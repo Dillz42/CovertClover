@@ -75,7 +75,8 @@ namespace CloverLibrary
             set
             {
                 if (autoRefreshThread.ThreadState != ThreadState.Running &&
-                    autoRefreshThread.ThreadState != ThreadState.Stopped)
+                    autoRefreshThread.ThreadState != ThreadState.Stopped &&
+                    autoRefreshThread.ThreadState != ThreadState.Aborted)
                     autoRefreshThread.Start();
 
                 _autoRefresh = value;
@@ -188,6 +189,7 @@ namespace CloverLibrary
                                 if (_autoRefresh)
                                 {
                                     System.Diagnostics.Debug.WriteLine("Loading thread " + no);
+                                    int oldReplyCount = replyPosts.Count;
                                     try
                                     {
                                         await Global.loadThread(this);
@@ -197,14 +199,19 @@ namespace CloverLibrary
                                         if (e.Message == "404-NotFound")
                                         {
                                             System.Diagnostics.Debug.WriteLine("Thread " + no + " has 404'd");
-                                            OnRaiseUpdateThreadEvent(new UpdateThreadEventArgs("404-NotFound"));
+                                            OnRaiseUpdateThreadEvent(new UpdateThreadEventArgs(UpdateThreadEventArgs.UpdateEvent.thread404));
                                             break;
                                         }
                                         else
                                             throw;
                                     }
-                                    OnRaiseUpdateThreadEvent(new UpdateThreadEventArgs("Hello World!"));
-                                    await saveThread();
+                                    if (replyPosts.Count > oldReplyCount)
+                                    {
+                                        List<ChanPost> postList = replyPosts.Values.Skip(oldReplyCount).ToList<ChanPost>();
+
+                                        OnRaiseUpdateThreadEvent(new UpdateThreadEventArgs(UpdateThreadEventArgs.UpdateEvent.newPosts, postList));
+                                        await saveThread();
+                                    }
                                 }
                                 if (System.Diagnostics.Debugger.IsAttached)
                                 {
@@ -337,16 +344,30 @@ namespace CloverLibrary
 
     public class UpdateThreadEventArgs : EventArgs
     {
-        private string message;
-        public UpdateThreadEventArgs(string s)
+        public enum UpdateEvent
         {
-            message = s;
+            unknown = 0,
+            thread404 = 1,
+            newPosts = 2
         }
 
-        public string Message
+        private UpdateEvent _updateEvent;
+        public List<ChanPost> postList;
+        public UpdateThreadEventArgs(UpdateEvent s)
         {
-            get { return message; }
-            set { message = value; }
+            _updateEvent = s;
+        }
+
+        public UpdateThreadEventArgs(UpdateEvent s, List<ChanPost> postList)
+        {
+            _updateEvent = s;
+            this.postList = postList;
+        }
+
+        public UpdateEvent updateEvent
+        {
+            get { return _updateEvent; }
+            set { _updateEvent = value; }
         }
     }
 }
