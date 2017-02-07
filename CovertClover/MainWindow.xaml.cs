@@ -76,6 +76,11 @@ namespace CovertClover
             List<CloverLibrary.ChanPost> postList = CloverLibrary.Global.getBoard(board, tokenSource.Token);
             foreach (CloverLibrary.ChanPost post in postList)
             {
+                if (tokenSource.IsCancellationRequested)
+                {
+                    return;
+                }
+
                 try
                 {
                     post.raiseUpdateThreadEvent += HandleUpdateThreadEvent;
@@ -114,7 +119,21 @@ namespace CovertClover
             ((ScrollViewer)ThreadList.Parent).ScrollToTop();
 
             CloverLibrary.ChanPost senderPost = ((CloverLibrary.ChanPost)((Button)sender).DataContext);
-            await CloverLibrary.Global.loadThread(senderPost, tokenSource.Token);
+            try
+            {
+                await CloverLibrary.Global.loadThread(senderPost, tokenSource.Token);
+            }
+            catch (Exception ex)
+            {
+                if (ex is TaskCanceledException)
+                    return;
+                else if (ex.Message == "404-NotFound")
+                {
+                    thread404(senderPost);
+                }
+                else
+                    throw;
+            }
 
             foreach (CloverLibrary.ChanPost post in senderPost.replyPosts.Values)
             {
@@ -122,14 +141,17 @@ namespace CovertClover
                 {
                     ThreadList.Children.Add(await convertPostToStackPanel(post));
                 }
-                catch (TaskCanceledException)
+                catch (Exception ex)
                 {
-                    break;
-                }
-                catch (Exception)
-                {
-                    System.Diagnostics.Debugger.Break();
-                    throw;
+                    if(ex is TaskCanceledException || ex is ArgumentNullException || ex is InvalidOperationException)
+                    {
+                        break;
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debugger.Break();
+                        throw;
+                    }
                 }
             }
         }
@@ -205,11 +227,18 @@ namespace CovertClover
             {
                 await post.loadImage();
                 BitmapImage imageToolTipSource = new BitmapImage();
-                imageToolTipSource.BeginInit();
-                imageToolTipSource.StreamSource = new System.IO.MemoryStream(post.imageData);
-                imageToolTipSource.CacheOption = BitmapCacheOption.OnLoad;
-                imageToolTipSource.EndInit();
-                imageToolTipSource.Freeze();
+                if (post.ext != ".webm")
+                {
+                    imageToolTipSource.BeginInit();
+                    imageToolTipSource.StreamSource = new System.IO.MemoryStream(post.imageData);
+                    imageToolTipSource.CacheOption = BitmapCacheOption.OnLoad;
+                    imageToolTipSource.EndInit();
+                    imageToolTipSource.Freeze(); 
+                }
+                else
+                {
+                    imageToolTipSource.UriSource = new Uri(CloverLibrary.Global.DEFAULT_IMAGE);
+                }
                 toolTipImage.Source = imageToolTipSource;
                 double workingHeight = SystemParameters.WorkArea.Height * .85;
                 toolTipImage.MaxWidth = post.w > SystemParameters.WorkArea.Width ? SystemParameters.WorkArea.Width : post.w;
@@ -321,22 +350,22 @@ namespace CovertClover
 
         private void addThreadWatch(CloverLibrary.ChanPost post)
         {
-            Button threadButton = new Button();
-            Grid threadGrid = new Grid();
+            //Button threadButton = new Button();
+            StackPanel threadStackPanel = new StackPanel();
             Button title = new Button();
             CheckBox autoReload = new CheckBox();
             CheckBox autoSave = new CheckBox();
             Button removeButton = new Button();
             
-            threadGrid.ColumnDefinitions.Add(new ColumnDefinition());
-            threadGrid.ColumnDefinitions.Add(new ColumnDefinition());
-            threadGrid.ColumnDefinitions.Add(new ColumnDefinition());
-            threadGrid.RowDefinitions.Add(new RowDefinition());
-            threadGrid.RowDefinitions.Add(new RowDefinition());
-            threadGrid.RowDefinitions.Add(new RowDefinition());
-            threadGrid.ColumnDefinitions[0].Width = GridLength.Auto;
-            threadGrid.ColumnDefinitions[1].Width = new GridLength(1, GridUnitType.Star);
-            threadGrid.ColumnDefinitions[2].Width = GridLength.Auto;
+            //threadGrid.ColumnDefinitions.Add(new ColumnDefinition());
+            //threadGrid.ColumnDefinitions.Add(new ColumnDefinition());
+            //threadGrid.ColumnDefinitions.Add(new ColumnDefinition());
+            //threadGrid.RowDefinitions.Add(new RowDefinition());
+            //threadGrid.RowDefinitions.Add(new RowDefinition());
+            //threadGrid.RowDefinitions.Add(new RowDefinition());
+            //threadGrid.ColumnDefinitions[0].Width = GridLength.Auto;
+            //threadGrid.ColumnDefinitions[1].Width = new GridLength(1, GridUnitType.Star);
+            //threadGrid.ColumnDefinitions[2].Width = GridLength.Auto;
 
             title.Content = post.board + "/" + post.no + " - " + 
                 (post.sub == "" ? 
@@ -344,52 +373,84 @@ namespace CovertClover
                 post.sub);
             title.HorizontalContentAlignment = HorizontalAlignment.Left;
             title.Click += ThreadButton_Click;
-            setGrid(title, colSpan: threadGrid.ColumnDefinitions.Count);
-            threadGrid.Children.Add(title);
+            //setGrid(title, colSpan: threadGrid.ColumnDefinitions.Count);
+            threadStackPanel.Children.Add(title);
             ToolTip titleToolTip = new ToolTip();
             titleToolTip.Content = title.Content;
+            title.Margin = new Thickness(3);
             ToolTipService.SetToolTip(title, titleToolTip);
 
             autoReload.Content = "AutoReload";
             autoReload.IsChecked = false;
             autoReload.Unchecked += (s, e) => { autoSave.IsEnabled = false; autoSave.IsChecked = false; post.autoRefresh = false; };
             autoReload.Checked += (s, e) => { autoSave.IsEnabled = true; post.autoRefresh = true; };
-            setGrid(autoReload, row: 1);
-            threadGrid.Children.Add(autoReload);
+            //setGrid(autoReload, row: 1);
+            threadStackPanel.Children.Add(autoReload);
 
             autoSave.Content = "Auto-save images";
             autoSave.IsChecked = false;
             autoSave.Unchecked += (s, e) => { post.saveImages = false; };
             autoSave.Checked += (s, e) => { post.saveImages = true; };
-            setGrid(autoSave, row: 2);
-            threadGrid.Children.Add(autoSave);
+            //setGrid(autoSave, row: 2);
+            threadStackPanel.Children.Add(autoSave);
 
             removeButton.Content = "Remove";
             removeButton.Click += (s, e) => 
             {
-                ThreadWatchList.Children.Remove(threadButton);
+                ThreadWatchList.Children.Remove(threadStackPanel);
+                post.autoRefresh = false;
+                post.autoRefreshThread.Abort();
                 e.Handled = true;
             };
-            setGrid(removeButton, column: 2, row: 2);
-            threadGrid.Children.Add(removeButton);
+            removeButton.Background = Brushes.DarkRed;
+            removeButton.Margin = new Thickness(3);
+            //setGrid(removeButton, column: 2, row: 2);
+            threadStackPanel.Children.Add(removeButton);
 
-            Rectangle rectangle = new Rectangle();
-            rectangle.Fill = Brushes.Blue;
-            setGrid(rectangle, column: 1, row: 1);
-            threadGrid.Children.Add(rectangle); ;
+            //threadButton.Content = threadGrid;
+            //threadButton.Margin = new Thickness(2);
+            //threadButton.Padding = new Thickness(5);
+            //threadButton.DataContext = post;
+            //threadButton.HorizontalContentAlignment = HorizontalAlignment.Stretch;
+            //threadGrid.MinWidth = 260;
 
-            threadButton.Content = threadGrid;
-            threadButton.Margin = new Thickness(2);
-            threadButton.Padding = new Thickness(5);
-            threadButton.DataContext = post;
-            threadButton.HorizontalContentAlignment = HorizontalAlignment.Stretch;
-            threadGrid.MinWidth = 260;
-            ThreadWatchList.Children.Add(threadButton);
+            threadStackPanel.DataContext = post;
+            threadStackPanel.Background = Brushes.DarkGreen;
+            threadStackPanel.Margin = new Thickness(2);
+            ThreadWatchList.Children.Add(threadStackPanel);
         }
 
         public void HandleUpdateThreadEvent(object sender, CloverLibrary.UpdateThreadEventArgs args)
         {
-            
+            CloverLibrary.ChanPost senderPost = (CloverLibrary.ChanPost)sender;
+
+            switch (args.Message)
+            {
+                case "404-NotFound":
+                    thread404(senderPost);
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        public void thread404(CloverLibrary.ChanPost post)
+        {
+            ThreadWatchList.Dispatcher.BeginInvoke((Action)(() =>
+            {
+                StackPanel threadWatchStackPanel = ThreadWatchList.Children.OfType<StackPanel>().Where(sp => sp.DataContext == post).First();
+                threadWatchStackPanel.Background = Brushes.DarkRed;
+                threadWatchStackPanel.Children.OfType<Button>().First().Content = 
+                    Regex.Replace(threadWatchStackPanel.Children.OfType<Button>().First().Content.ToString(),
+                    "(\\w+/\\d+ -)(.*)", "$1 404 -$2");
+                foreach (CheckBox checkBox in threadWatchStackPanel.Children.OfType<CheckBox>())
+                {
+                    checkBox.IsChecked = false;
+                    checkBox.IsEnabled = false;
+                }
+
+            }));
+            post.on404();
         }
     }
 }

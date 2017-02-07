@@ -107,12 +107,11 @@ namespace CloverLibrary
             EventHandler<UpdateThreadEventArgs> handler = raiseUpdateThreadEvent;
             if(handler != null)
             {
-                e.Message += " Testing events!";
                 handler(this, e);
             }
         }
 
-        private Thread autoRefreshThread;
+        public Thread autoRefreshThread;
 
         public ChanPost()
         {
@@ -164,8 +163,7 @@ namespace CloverLibrary
             if (ext != "")
             {
                 thumbUrl = (Global.BASE_IMAGE_URL + board + "/" + tim + "s.jpg");
-                imageUrl = ext == ".webm" ? "http://s.4cdn.org/image/fp/logo-transparent.png" :
-                                            (Global.BASE_IMAGE_URL + board + "/" + tim + ext);
+                imageUrl = Global.BASE_IMAGE_URL + board + "/" + tim + ext;
             }
             else
             {
@@ -183,16 +181,45 @@ namespace CloverLibrary
 
                 autoRefreshThread = new Thread(async () =>
                     {
-                        while (true)
+                        try
                         {
-                            if (_autoRefresh)
+                            while (true)
                             {
-                                System.Diagnostics.Debug.WriteLine("Loading thread " + no);
-                                await Global.loadThread(this);
-                                OnRaiseUpdateThreadEvent(new UpdateThreadEventArgs("Hello World!"));
-                                await saveThread();
+                                if (_autoRefresh)
+                                {
+                                    System.Diagnostics.Debug.WriteLine("Loading thread " + no);
+                                    try
+                                    {
+                                        await Global.loadThread(this);
+                                    }
+                                    catch (Exception e)
+                                    {
+                                        if (e.Message == "404-NotFound")
+                                        {
+                                            System.Diagnostics.Debug.WriteLine("Thread " + no + " has 404'd");
+                                            OnRaiseUpdateThreadEvent(new UpdateThreadEventArgs("404-NotFound"));
+                                            break;
+                                        }
+                                        else
+                                            throw;
+                                    }
+                                    OnRaiseUpdateThreadEvent(new UpdateThreadEventArgs("Hello World!"));
+                                    await saveThread();
+                                }
+                                if (System.Diagnostics.Debugger.IsAttached)
+                                {
+                                    await Task.Delay(5000);
+                                }
+                                else
+                                {
+                                    await Task.Delay(30000);
+                                }
+                                
                             }
-                            await Task.Delay(30000);
+                        }
+                        catch (ThreadAbortException ex)
+                        {
+                            
                         }
                     });
             }
@@ -240,7 +267,26 @@ namespace CloverLibrary
             if (imageData == null)
             {
                 //System.Diagnostics.Debug.WriteLine("Loading image " + imageUrl);
-                imageData = await WebTools.httpRequestByteArry(imageUrl, cancellationToken);
+                try
+                {
+                    imageData = await WebTools.httpRequestByteArry(imageUrl, cancellationToken);
+                }
+                catch (TaskCanceledException)
+                {
+
+                }
+                catch (Exception e)
+                {
+                    if (e.Message == "404-NotFound")
+                    {
+                        imageData = await WebTools.httpRequestByteArry("http://is2.4chan.org/" + board + "/" + tim + ext, cancellationToken);
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debugger.Break();
+                        throw;
+                    }
+                }
             }
         }
 
@@ -249,8 +295,34 @@ namespace CloverLibrary
             if (thumbData == null)
             {
                 //System.Diagnostics.Debug.WriteLine("Loading thumb " + thumbUrl);
-                thumbData = await WebTools.httpRequestByteArry(thumbUrl, cancellationToken);
+                try
+                {
+                    thumbData = await WebTools.httpRequestByteArry(thumbUrl, cancellationToken);
+                }
+                catch (TaskCanceledException)
+                {
+
+                }
+                catch (Exception e)
+                {
+                    if (e.Message == "404-NotFound")
+                    {
+                        thumbData = await WebTools.httpRequestByteArry(Global.DEFAULT_IMAGE, cancellationToken);
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debugger.Break();
+                        throw;
+                    }
+                }
             }
+        }
+
+        public void on404()
+        {
+            autoRefresh = false;
+            saveImages = false;
+            autoRefreshThread.Abort();
         }
 
         public int CompareTo(ChanPost other)
