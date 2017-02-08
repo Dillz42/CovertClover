@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -19,7 +20,7 @@ namespace CovertClover
 {
     public partial class MainWindow : Window
     {
-        System.Threading.CancellationTokenSource tokenSource = new System.Threading.CancellationTokenSource();
+        List<CancellationTokenSource> tokenSourceList = new List<CancellationTokenSource>();
         public MainWindow()
         {
             InitializeComponent();
@@ -59,8 +60,12 @@ namespace CovertClover
         
         private async void BoardButton_Click(object sender, RoutedEventArgs e)
         {
-            tokenSource.Cancel();
-            tokenSource = new System.Threading.CancellationTokenSource();
+            foreach (CancellationTokenSource loopTokenSource in tokenSourceList)
+            {
+                loopTokenSource.Cancel();
+            }
+            CancellationTokenSource tokenSource = new CancellationTokenSource();
+            tokenSourceList.Add(tokenSource);
 
             ThreadList.Children.Clear();
             ((ScrollViewer)ThreadList.Parent).ScrollToTop();
@@ -70,8 +75,8 @@ namespace CovertClover
 
             await CloverLibrary.Global.loadBoard(board, tokenSource.Token);
 
-            List<CloverLibrary.ChanPost> postList = CloverLibrary.Global.getBoard(board, tokenSource.Token);
-            foreach (CloverLibrary.ChanPost post in postList)
+            List<CloverLibrary.ChanThread> postList = CloverLibrary.Global.getBoard(board, tokenSource.Token);
+            foreach (CloverLibrary.ChanThread thread in postList)
             {
                 if (tokenSource.IsCancellationRequested)
                 {
@@ -80,8 +85,8 @@ namespace CovertClover
 
                 try
                 {
-                    post.raiseUpdateThreadEvent += HandleUpdateThreadEvent;
-                    ThreadList.Children.Add(await convertPostToUIElement(post));
+                    thread.raiseUpdateThreadEvent += HandleUpdateThreadEvent;
+                    ThreadList.Children.Add(await convertPostToUIElement(thread.postDictionary.Values.First()));
                 }
                 catch (TaskCanceledException)
                 {
@@ -113,16 +118,21 @@ namespace CovertClover
                 return;
             }
 
-            tokenSource.Cancel();
-            tokenSource = new System.Threading.CancellationTokenSource();
+            foreach (CancellationTokenSource loopTokenSource in tokenSourceList)
+            {
+                loopTokenSource.Cancel();
+            }
+            CancellationTokenSource tokenSource = new CancellationTokenSource();
+            tokenSourceList.Add(tokenSource);
 
             ThreadList.Children.Clear();
             ((ScrollViewer)ThreadList.Parent).ScrollToTop();
 
-            CloverLibrary.ChanPost senderPost = ((CloverLibrary.ChanPost)((Button)sender).DataContext);
+            CloverLibrary.ChanThread senderThread = ((CloverLibrary.ChanThread)((Button)sender).DataContext);
+            Title = Regex.Replace(Title, "(\\w+ - .*?) : .*", "$1 : " + senderThread.threadName);
             try
             {
-                await CloverLibrary.Global.loadThread(senderPost, tokenSource.Token);
+                await CloverLibrary.Global.loadThread(senderThread, tokenSource.Token);
             }
             catch (Exception ex)
             {
@@ -130,13 +140,13 @@ namespace CovertClover
                     return;
                 else if (ex.Message == "404-NotFound")
                 {
-                    thread404(senderPost);
+                    thread404(senderThread);
                 }
                 else
                     throw;
             }
 
-            foreach (CloverLibrary.ChanPost post in senderPost.replyPosts.Values)
+            foreach (CloverLibrary.ChanPost post in senderThread.postDictionary.Values)
             {
                 try
                 {
@@ -166,11 +176,11 @@ namespace CovertClover
                 string newBoard = matches[0].Groups[1].ToString();
                 int no = int.Parse(matches[0].Groups[2].ToString());
 
-                CloverLibrary.ChanPost newPost;
+                CloverLibrary.ChanThread newThread;
 
                 try
                 {
-                    newPost = await CloverLibrary.Global.loadThread(newBoard, no, tokenSource.Token);
+                    newThread = await CloverLibrary.Global.loadThread(newBoard, no);
                 }
                 catch (Exception ex)
                 {
@@ -184,7 +194,7 @@ namespace CovertClover
                     else
                         throw;
                 }
-                addThreadWatch(newPost);
+                addThreadWatch(newThread);
             }
             else
             {
@@ -216,7 +226,7 @@ namespace CovertClover
             retVal.RowDefinitions.Add(new RowDefinition());
 
             TextBlock textBlockSubject = new TextBlock();
-            textBlockSubject.Text = post.board + "/" + post.no + ((post.sub == "") ? ("") : (" - " + post.sub)) +
+            textBlockSubject.Text = post.thread.board + "/" + post.no + ((post.sub == "") ? ("") : (" - " + post.sub)) +
                 " - " + post.now + (post.resto == 0 ? " - R: " + post.replies + " / I: " + post.images : "");
             textBlockSubject.TextWrapping = TextWrapping.Wrap;
             setGrid(textBlockSubject, colSpan: 2);
@@ -224,7 +234,7 @@ namespace CovertClover
 
             try
             {
-                await post.loadThumb(tokenSource.Token);
+                await post.loadThumb();
             }
             catch (System.Threading.Tasks.TaskCanceledException)
             {
@@ -374,7 +384,7 @@ namespace CovertClover
                 button.Margin = new Thickness(2);
                 button.Click += (cs, ce) =>
                 {
-                    addThreadWatch(post);
+                    addThreadWatch(post.thread);
                 };
 
                 return button; 
@@ -392,7 +402,7 @@ namespace CovertClover
             }
         }
 
-        private void addThreadWatch(CloverLibrary.ChanPost post)
+        private void addThreadWatch(CloverLibrary.ChanThread thread)
         {
             //Button threadButton = new Button();
             StackPanel threadStackPanel = new StackPanel();
@@ -411,10 +421,7 @@ namespace CovertClover
             //threadGrid.ColumnDefinitions[1].Width = new GridLength(1, GridUnitType.Star);
             //threadGrid.ColumnDefinitions[2].Width = GridLength.Auto;
 
-            title.Content = post.board + "/" + post.no + " - " + 
-                (post.sub == "" ? 
-                post.com.Substring(0, (post.com.Length > 50 ? 50 : post.com.Length)).Replace("\n", " ") : 
-                post.sub);
+            title.Content = thread.board + "/" + thread.id+ " - " + thread.threadName;
             title.HorizontalContentAlignment = HorizontalAlignment.Left;
             title.Click += ThreadButton_Click;
             //setGrid(title, colSpan: threadGrid.ColumnDefinitions.Count);
@@ -426,15 +433,15 @@ namespace CovertClover
 
             autoReload.Content = "AutoReload";
             autoReload.IsChecked = false;
-            autoReload.Unchecked += (s, e) => { autoSave.IsEnabled = false; autoSave.IsChecked = false; post.autoRefresh = false; };
-            autoReload.Checked += (s, e) => { autoSave.IsEnabled = true; post.autoRefresh = true; };
+            autoReload.Unchecked += (s, e) => { autoSave.IsEnabled = false; autoSave.IsChecked = false; thread.autoRefresh = false; };
+            autoReload.Checked += (s, e) => { autoSave.IsEnabled = true; thread.autoRefresh = true; };
             //setGrid(autoReload, row: 1);
             threadStackPanel.Children.Add(autoReload);
 
             autoSave.Content = "Auto-save images";
             autoSave.IsChecked = false;
-            autoSave.Unchecked += (s, e) => { post.saveImages = false; };
-            autoSave.Checked += (s, e) => { post.saveImages = true; };
+            autoSave.Unchecked += (s, e) => { thread.saveImages = false; };
+            autoSave.Checked += (s, e) => { thread.saveImages = true; };
             //setGrid(autoSave, row: 2);
             threadStackPanel.Children.Add(autoSave);
 
@@ -442,11 +449,11 @@ namespace CovertClover
             removeButton.Click += (s, e) => 
             {
                 ThreadWatchList.Children.Remove(threadStackPanel);
-                post.autoRefresh = false;
-                post.autoRefreshThread.Abort();
+                thread.autoRefresh = false;
+                thread.autoRefreshThread.Abort();
                 e.Handled = true;
             };
-            removeButton.Background = Brushes.DarkRed;
+            removeButton.Foreground = Brushes.DarkRed;
             removeButton.Margin = new Thickness(3);
             //setGrid(removeButton, column: 2, row: 2);
             threadStackPanel.Children.Add(removeButton);
@@ -458,7 +465,7 @@ namespace CovertClover
             //threadButton.HorizontalContentAlignment = HorizontalAlignment.Stretch;
             //threadGrid.MinWidth = 260;
 
-            threadStackPanel.DataContext = post;
+            threadStackPanel.DataContext = thread;
             threadStackPanel.Background = Brushes.DarkGreen;
             threadStackPanel.Margin = new Thickness(2);
             ThreadWatchList.Children.Add(threadStackPanel);
@@ -466,7 +473,7 @@ namespace CovertClover
 
         public void HandleUpdateThreadEvent(object sender, CloverLibrary.UpdateThreadEventArgs args)
         {
-            CloverLibrary.ChanPost senderPost = (CloverLibrary.ChanPost)sender;
+            CloverLibrary.ChanThread senderPost = (CloverLibrary.ChanThread)sender;
 
             switch (args.updateEvent)
             {
@@ -491,11 +498,11 @@ namespace CovertClover
             }
         }
 
-        public void thread404(CloverLibrary.ChanPost post)
+        public void thread404(CloverLibrary.ChanThread thread)
         {
             ThreadWatchList.Dispatcher.BeginInvoke((Action)(() =>
             {
-                StackPanel threadWatchStackPanel = ThreadWatchList.Children.OfType<StackPanel>().Where(sp => sp.DataContext == post).First();
+                StackPanel threadWatchStackPanel = ThreadWatchList.Children.OfType<StackPanel>().Where(sp => sp.DataContext == thread).First();
                 threadWatchStackPanel.Background = Brushes.DarkRed;
                 threadWatchStackPanel.Children.OfType<Button>().First().Content = 
                     Regex.Replace(threadWatchStackPanel.Children.OfType<Button>().First().Content.ToString(),
@@ -507,7 +514,7 @@ namespace CovertClover
                 }
 
             }));
-            post.on404();
+            thread.on404();
         }
     }
 }

@@ -13,9 +13,10 @@ namespace CloverLibrary
     {
         public const string BASE_URL = "http://a.4cdn.org/";
         public const string BASE_IMAGE_URL = "http://i.4cdn.org/";
+        public const string BACK_IMAGE_URL = "http://is2.4chan.org/";
         public const string DEFAULT_IMAGE = "http://s.4cdn.org/image/fp/logo-transparent.png";
 
-        private static SortedDictionary<int, ChanPost> threadDictionary = new SortedDictionary<int, ChanPost>();
+        private static SortedDictionary<int, ChanThread> threadDictionary = new SortedDictionary<int, ChanThread>();
 
         public async static Task<List<Tuple<string, string, string>>> getBoardList(CancellationToken cancellationToken = new CancellationToken())
         {
@@ -41,6 +42,11 @@ namespace CloverLibrary
 
         public async static Task loadBoard(string board = "b", CancellationToken cancellationToken = new CancellationToken())
         {
+            foreach (var item in threadDictionary.Where(t => t.Value.board == board))
+            {
+                threadDictionary.Remove(item.Key);
+            }
+
             string address = BASE_URL + board + "/catalog.json";
             JArray jsonArray = (JArray)await WebTools.httpRequestParse(address, JArray.Parse);
 
@@ -50,15 +56,18 @@ namespace CloverLibrary
                 {
                     if (threadDictionary.ContainsKey((int)jsonThread["no"]) == false)
                     {
-                        threadDictionary.Add((int)jsonThread["no"], new ChanPost(jsonThread, board));
+                        ChanPost op = new ChanPost(jsonThread);
+                        ChanThread thread = new ChanThread(board, op.no);
+                        thread.addPost(op);
+                        threadDictionary.Add((int)jsonThread["no"], thread);
                     }
                 }
             }
         }
 
-        public static List<ChanPost> getBoard(string board, CancellationToken cancellationToken = new CancellationToken())
+        public static List<ChanThread> getBoard(string board, CancellationToken cancellationToken = new CancellationToken())
         {
-            List<ChanPost> retVal = new List<ChanPost>();
+            List<ChanThread> retVal = new List<ChanThread>();
 
             foreach (var post in threadDictionary)
             {
@@ -75,89 +84,45 @@ namespace CloverLibrary
             return retVal;
         }
 
-        public async static Task<ChanPost> loadThread(string board, int no, CancellationToken cancellationToken = new CancellationToken())
+        public async static Task loadThread(ChanThread thread, CancellationToken cancellationToken = new CancellationToken())
         {
-            ChanPost retVal;
-
-            string address = BASE_URL + board + "/thread/" + no + ".json";
+            string address = BASE_URL + thread.board + "/thread/" + thread.id + ".json";
             JObject jsonObject = (JObject)await WebTools.httpRequestParse(address, JObject.Parse);
 
-            retVal = new ChanPost((JObject)jsonObject["posts"][0], board);
-            
             foreach (JObject jsonPost in (JArray)jsonObject["posts"])
             {
-                ChanPost post = new ChanPost(jsonPost, board);
-                if (retVal.replyPosts.ContainsKey(post.no) == false)
+                ChanPost post = new ChanPost(jsonPost);
+                if (thread.postDictionary.ContainsKey(post.no) == false)
                 {
-                    retVal.replyPosts.Add(post.no, post);
+                    thread.addPost(post);
                     jsonPost.Remove("last_replies");
-                    ((JArray)retVal.json["posts"]).Add(jsonPost);
 
                     Regex regex = new Regex("<a href=\"#p(?<reply>\\d+)\" class=\"quotelink\">>>\\d+</a>");
                     MatchCollection matches = regex.Matches(post.com);
                     foreach (Match match in matches)
                     {
                         int replyTo = int.Parse(match.Groups["reply"].ToString());
-                        retVal.replyPosts[replyTo].addReplyNum(post.no);
+                        thread.postDictionary[replyTo].addReplyNum(post.no);
                     }
                     post.com = regex.Replace(post.com, ">>$1");
                 }
                 else
                 {
-                    retVal.replyPosts[post.no].update(post);
+                    thread.postDictionary[post.no].update(post);
                 }
             }
-
-            return retVal;
         }
 
-        public async static Task loadThread(ChanPost op, CancellationToken cancellationToken = new CancellationToken())
+        public async static Task<ChanThread> loadThread(string board, int no, CancellationToken cancellationToken = new CancellationToken())
         {
-            string address = BASE_URL + op.board + "/thread/" + op.no + ".json";
-            JObject jsonObject = (JObject)await WebTools.httpRequestParse(address, JObject.Parse);
-
-            foreach (JObject jsonPost in (JArray)jsonObject["posts"])
-            {
-                ChanPost post = new ChanPost(jsonPost, op.board);
-                if (op.replyPosts.ContainsKey(post.no) == false)
-                {
-                    op.replyPosts.Add(post.no, post);
-                    jsonPost.Remove("last_replies");
-                    ((JArray)op.json["posts"]).Add(jsonPost);
-
-                    Regex regex = new Regex("<a href=\"#p(?<reply>\\d+)\" class=\"quotelink\">>>\\d+</a>");
-                    MatchCollection matches = regex.Matches(post.com);
-                    foreach (Match match in matches)
-                    {
-                        int replyTo = int.Parse(match.Groups["reply"].ToString());
-                        op.replyPosts[replyTo].addReplyNum(post.no);
-                    }
-                    post.com = regex.Replace(post.com, ">>$1");
-                }
-                else
-                {
-                    op.replyPosts[post.no].update(post);
-                }
-            }
+            ChanThread retVal = new ChanThread(board, no);
+            await loadThread(retVal, cancellationToken);
+            return retVal;
         }
 
         public static List<ChanPost> getThread(int threadNumber, string board = "b", CancellationToken cancellationToken = new CancellationToken())
         {
-            List<ChanPost> retVal = new List<ChanPost>();
-
-            foreach (var post in threadDictionary)
-            {
-                if (cancellationToken.IsCancellationRequested)
-                {
-                    break;
-                }
-                if (post.Value.resto == threadNumber || post.Value.no == threadNumber)
-                {
-                    retVal.Add(post.Value);
-                }
-            }
-            retVal.Sort();
-            return retVal;
+            return threadDictionary[threadNumber].postDictionary.Values.ToList();
         }
 
         public static string MakeSafeFilename(string filename, char replaceChar = '_')
