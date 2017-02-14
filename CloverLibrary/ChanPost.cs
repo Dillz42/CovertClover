@@ -121,30 +121,46 @@ namespace CloverLibrary
             filedeleted = newData.filedeleted;
         }
 
+        public string getThumbPath()
+        {
+            return thread.getDir() + Global.THUMBS_FOLDER_NAME + Global.MakeSafeFilename(tim + "s.jpg");
+        }
+
+        public string getImagePath()
+        {
+            return thread.getDir() + Global.MakeSafeFilename(tim + "-" + filename + ext);
+        }
+
         public async Task loadThumb(CancellationToken cancellationToken = new CancellationToken())
         {
             if (thumbData == null)
             {
-                //System.Diagnostics.Debug.WriteLine("Loading thumb " + thumbUrl);
-                try
+                if (System.IO.File.Exists(getThumbPath()) == true)
                 {
-                    thumbData = await WebTools.httpRequestByteArry(
-                        Global.BASE_IMAGE_URL + thread.board + "/" + tim + "s.jpg", cancellationToken);
+                    thumbData = System.IO.File.ReadAllBytes(getThumbPath());
                 }
-                catch (TaskCanceledException)
+                else
                 {
-                    throw;
-                }
-                catch (Exception e)
-                {
-                    if (e.Message == "404-NotFound")
+                    try
                     {
-                        thumbData = await WebTools.httpRequestByteArry(Global.DEFAULT_IMAGE, cancellationToken);
+                        thumbData = await WebTools.httpRequestByteArry(
+                            Global.BASE_IMAGE_URL + thread.board + "/" + tim + "s.jpg", cancellationToken);
                     }
-                    else
+                    catch (TaskCanceledException)
                     {
-                        System.Diagnostics.Debugger.Break();
                         throw;
+                    }
+                    catch (Exception e)
+                    {
+                        if (e.Message == "404-NotFound")
+                        {
+                            thumbData = await WebTools.httpRequestByteArry(Global.DEFAULT_IMAGE, cancellationToken);
+                        }
+                        else
+                        {
+                            System.Diagnostics.Debugger.Break();
+                            throw;
+                        }
                     }
                 }
             }
@@ -154,40 +170,58 @@ namespace CloverLibrary
         {
             if (imageData == null)
             {
-                try
+                if (System.IO.File.Exists(getImagePath()) == true)
                 {
-                    imageData = await WebTools.httpRequestByteArry(
-                        Global.BASE_IMAGE_URL + thread.board + "/" + tim + ext, cancellationToken);
+                    imageData = System.IO.File.ReadAllBytes(getImagePath());
                 }
-                catch (TaskCanceledException)
+                else
                 {
-
-                }
-                catch (Exception e)
-                {
-                    if (e.Message == "404-NotFound")
+                    try
                     {
                         imageData = await WebTools.httpRequestByteArry(
-                            Global.BACK_IMAGE_URL + thread.board + tim + ext, cancellationToken);
+                            Global.BASE_IMAGE_URL + thread.board + "/" + tim + ext, cancellationToken);
                     }
-                    else
+                    catch (TaskCanceledException)
                     {
-                        System.Diagnostics.Debugger.Break();
-                        throw;
+
                     }
+                    catch (Exception e)
+                    {
+                        if (e.Message == "404-NotFound")
+                        {
+                            imageData = await WebTools.httpRequestByteArry(
+                                Global.BACK_IMAGE_URL + thread.board + tim + ext, cancellationToken);
+                        }
+                        else
+                        {
+                            System.Diagnostics.Debugger.Break();
+                            throw;
+                        }
+                    }
+                }
+            }
+        }
+
+        public async Task saveThumb(string dir, CancellationToken cancellationToken = new CancellationToken())
+        {
+            await loadThumb(cancellationToken);
+            if (ext != "" && thumbData != null)
+            {
+                if (System.IO.File.Exists(getThumbPath()) == false)
+                {
+                    System.IO.File.WriteAllBytes(getThumbPath(), thumbData);
                 }
             }
         }
 
         public async Task saveImage(string dir, CancellationToken cancellationToken = new CancellationToken())
         {
-            if (ext != "")
+            if (ext != "" && imageData != null)
             {
-                string fullFileName = dir + Global.MakeSafeFilename(tim + "-" + filename + ext);
                 await loadImage(cancellationToken);
-                if (System.IO.File.Exists(fullFileName) == false)
+                if (System.IO.File.Exists(getImagePath()) == false)
                 {
-                    System.IO.File.WriteAllBytes(fullFileName, imageData);
+                    System.IO.File.WriteAllBytes(getImagePath(), imageData);
                 } 
             }
         }

@@ -15,8 +15,12 @@ namespace CloverLibrary
         public const string BASE_IMAGE_URL = "http://i.4cdn.org/";
         public const string BACK_IMAGE_URL = "http://is2.4chan.org/";
         public const string DEFAULT_IMAGE = "http://s.4cdn.org/image/fp/logo-transparent.png";
+        public const string SAVE_DIR = "D:\\Downloads\\PicsAndVids\\FromChan\\";
+        public const string THUMBS_FOLDER_NAME = "thumbs\\";
+        private const string WATCH_FILE_PATH = "watchFile.dat";
 
         private static SortedDictionary<int, ChanThread> threadDictionary = new SortedDictionary<int, ChanThread>();
+        private static Mutex threadDictionaryMutex = new Mutex();
 
         public async static Task<List<Tuple<string, string, string>>> getBoardList(CancellationToken cancellationToken = new CancellationToken())
         {
@@ -42,11 +46,6 @@ namespace CloverLibrary
 
         public async static Task loadBoard(string board = "b", CancellationToken cancellationToken = new CancellationToken())
         {
-            foreach (var item in threadDictionary.Where(t => t.Value.board == board))
-            {
-                threadDictionary.Remove(item.Key);
-            }
-
             string address = BASE_URL + board + "/catalog.json";
             JArray jsonArray = (JArray)await WebTools.httpRequestParse(address, JArray.Parse);
 
@@ -59,7 +58,13 @@ namespace CloverLibrary
                         ChanPost op = new ChanPost(jsonThread);
                         ChanThread thread = new ChanThread(board, op.no);
                         thread.addPost(op);
+                        threadDictionaryMutex.WaitOne();
                         threadDictionary.Add((int)jsonThread["no"], thread);
+                        threadDictionaryMutex.ReleaseMutex();
+                    }
+                    else
+                    {
+                        threadDictionary[(int)jsonThread["no"]].updateThread(jsonThread);
                     }
                 }
             }
@@ -69,6 +74,7 @@ namespace CloverLibrary
         {
             List<ChanThread> retVal = new List<ChanThread>();
 
+            threadDictionaryMutex.WaitOne();
             foreach (var post in threadDictionary)
             {
                 if(cancellationToken.IsCancellationRequested)
@@ -80,6 +86,7 @@ namespace CloverLibrary
                     retVal.Add(post.Value);
                 }
             }
+            threadDictionaryMutex.ReleaseMutex();
             retVal.Sort();
             return retVal;
         }
@@ -113,10 +120,14 @@ namespace CloverLibrary
             }
         }
 
-        public async static Task<ChanThread> loadThread(string board, int no, CancellationToken cancellationToken = new CancellationToken())
+        public async static Task<ChanThread> loadThread(string board, int no, bool autoReload = false, bool saveImages = false, string title = "unknown",
+            CancellationToken cancellationToken = new CancellationToken())
         {
-            ChanThread retVal = new ChanThread(board, no);
+            ChanThread retVal = new ChanThread(board, no, title);
+            threadDictionary.Add(no, retVal);
             await loadThread(retVal, cancellationToken);
+            retVal.autoRefresh = autoReload;
+            retVal.saveImages = saveImages;
             return retVal;
         }
 
@@ -131,8 +142,84 @@ namespace CloverLibrary
             {
                 filename = filename.Replace(c, replaceChar);
             }
-
+            if(filename.Length > 100)
+            {
+                filename = filename.Substring(0, 75) + filename.Substring(filename.LastIndexOf('.'));
+            }
             return filename;
+        }
+
+        private static Mutex watchFileMutex = new Mutex();
+
+        public static void watchFileAdd(ChanThread thread)
+        {
+            watchFileMutex.WaitOne();
+            string fileContent = System.IO.File.ReadAllText(WATCH_FILE_PATH);
+            if (fileContent.Contains(thread.id.ToString()))
+            {
+                fileContent = Regex.Replace(fileContent, thread.id + "\t" + "\\w\\w", 
+                    thread.id.ToString() + "\t" + (thread.autoRefresh ? "R" : "r") + (thread.saveImages ? "I" : "i"));
+                System.IO.File.WriteAllText(WATCH_FILE_PATH, fileContent);
+            }
+            else
+            {
+                using (System.IO.StreamWriter writer = System.IO.File.AppendText(WATCH_FILE_PATH))
+                {
+                    writer.WriteLine(thread.board + "/" + thread.id + "\t" + 
+                        (thread.autoRefresh ? "R" : "r") + (thread.saveImages ? "I" : "i") + 
+                        "\t" + thread.threadName);
+                }
+            }
+            watchFileMutex.ReleaseMutex();
+        }
+
+        public static void watchFileRemove(ChanThread thread)
+        {
+            watchFileMutex.WaitOne();
+            string fileContent = System.IO.File.ReadAllText(WATCH_FILE_PATH);
+            fileContent = Regex.Replace(fileContent, thread.board + "/" + thread.id + "\t" + "\\w\\w.*\\r?\\n", "");
+            System.IO.File.WriteAllText(WATCH_FILE_PATH, fileContent);
+            watchFileMutex.ReleaseMutex();
+        }
+
+        public async static Task<List<ChanThread>> watchFileLoad()
+        {
+            List<ChanThread> retVal = new List<ChanThread>();
+            if (System.IO.File.Exists(WATCH_FILE_PATH))
+            {
+                string fileContent = System.IO.File.ReadAllText(WATCH_FILE_PATH);
+                MatchCollection matches = Regex.Matches(fileContent, "(\\w+)/(\\d+)\t(\\w)(\\w)(.*)");
+                foreach (Match match in matches)
+                {
+                    System.Diagnostics.Debug.WriteLine("Loading thread: " +
+                        match.Groups[1] + "\t" +
+                        match.Groups[2] + "\t");
+
+                    try
+                    {
+                        await loadThread(match.Groups[1].ToString(), int.Parse(match.Groups[2].ToString()),
+                                        match.Groups[3].ToString() == "R", match.Groups[4].ToString() == "I",
+                                        match.Groups[5].ToString());
+                    }
+                    catch (Exception ex)
+                    {
+                        if (ex.Message == "404-NotFound")
+                        {
+                            continue;
+                        }
+                        else
+                        {
+                            System.Diagnostics.Debugger.Break();
+                            throw; 
+                        }
+                    }
+                } 
+            }
+            foreach (ChanThread thread in threadDictionary.Values)
+            {
+                retVal.Add(thread);
+            }
+            return retVal;
         }
     }
 }

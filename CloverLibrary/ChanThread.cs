@@ -15,13 +15,14 @@ namespace CloverLibrary
         public string threadName;
         public string dirName;
         public JObject json = new JObject();
+        public int refreshRate = 120000; //reload every 2 minutes
 
         public SortedDictionary<int, ChanPost> postDictionary = new SortedDictionary<int, ChanPost>();
 
         public Thread autoRefreshThread;
 
         private bool _autoRefresh;
-        public bool saveImages;
+        private bool _saveImages;
         public bool autoRefresh
         {
             get
@@ -30,27 +31,46 @@ namespace CloverLibrary
             }
             set
             {
-                if (value == true &&
-                    autoRefreshThread.ThreadState != ThreadState.Running &&
-                    autoRefreshThread.ThreadState != ThreadState.Stopped &&
-                    autoRefreshThread.ThreadState != ThreadState.Aborted)
-                    autoRefreshThread.Start();
-
                 _autoRefresh = value;
+
+                if (value == true)
+                {
+                    if (autoRefreshThread.ThreadState != ThreadState.Running &&
+                        autoRefreshThread.ThreadState != ThreadState.Stopped &&
+                        autoRefreshThread.ThreadState != ThreadState.Aborted)
+                    {
+                        autoRefreshThread.Start();
+                    }
+                    
+                }
+                Global.watchFileAdd(this);
+            }
+        }
+
+        public bool saveImages
+        {
+            get
+            {
+                return _saveImages;
+            }
+            set
+            {
+                _saveImages = value;
+                Global.watchFileAdd(this);
             }
         }
 
         public event EventHandler<UpdateThreadEventArgs> raiseUpdateThreadEvent;
         protected virtual void OnRaiseUpdateThreadEvent(UpdateThreadEventArgs e)
         {
-            EventHandler<UpdateThreadEventArgs> handler = raiseUpdateThreadEvent;
-            handler(this, e);
+            raiseUpdateThreadEvent?.Invoke(this, e);
         }
 
-        public ChanThread(string board, int id)
+        public ChanThread(string board, int id, string title = "")
         {
             this.board = board;
             this.id = id;
+            this.threadName = title;
             json.Add("posts", new JArray());
 
             autoRefreshThread = new Thread(async () =>
@@ -86,26 +106,24 @@ namespace CloverLibrary
                                 await saveThread();
                             }
                         }
-                        if (System.Diagnostics.Debugger.IsAttached)
-                        {
-                            await Task.Delay(5000);
-                        }
-                        else
-                        {
-                            await Task.Delay(30000);
-                        }
+                        refreshRate = calculateRefreshRate();
+                        await Task.Delay(refreshRate);
 
                     }
                 }
                 catch (ThreadAbortException ex)
                 {
-
+                    OnRaiseUpdateThreadEvent(new UpdateThreadEventArgs(UpdateThreadEventArgs.UpdateEvent.unknown, ex));
                 }
             });
         }
 
         public int CompareTo(ChanThread other)
         {
+            if (postDictionary.Count == 0 || other.postDictionary.Count == 0)
+            {
+                return id - other.id;
+            }
             if (other.postDictionary.First().Value.sticky == postDictionary.First().Value.sticky)
             {
                 return (int)(other.postDictionary.First().Value.last_modified - postDictionary.First().Value.last_modified);
@@ -126,25 +144,62 @@ namespace CloverLibrary
             }
         }
 
+        public void updateThread(JObject jsonThread)
+        {
+            //System.Diagnostics.Debugger.Break();
+        }
+
+        public string getDir()
+        {
+            return Global.SAVE_DIR + board + "-" + id + "-" + dirName + "\\";
+        }
+
         public async Task saveThread(CancellationToken cancellationToken = new CancellationToken())
         {
-            string dir = "D:\\Downloads\\PicsAndVids\\FromChan\\" +
-                board + "-" + id + "-" + dirName + "\\";
+            string dir = getDir();
 
             if (System.IO.Directory.Exists(dir) == false)
             {
                 System.IO.Directory.CreateDirectory(dir);
             }
-
-            if (saveImages)
+            if (System.IO.Directory.Exists(dir + Global.THUMBS_FOLDER_NAME) == false)
             {
-                foreach (ChanPost post in postDictionary.Values)
-                {
-                    await post.saveImage(dir, cancellationToken);
-                } 
+                System.IO.Directory.CreateDirectory(dir + Global.THUMBS_FOLDER_NAME);
             }
 
+            foreach (ChanPost post in postDictionary.Values)
+            {
+                await post.saveThumb(dir, cancellationToken);
+                if (saveImages)
+                {
+                    await post.loadImage();
+                    await post.saveImage(dir, cancellationToken);
+                }
+            }
+            
             System.IO.File.WriteAllText(dir + "thread.json", json.ToString());
+        }
+
+        public int calculateRefreshRate()
+        {
+            int refreshRate = 0;
+            if (postDictionary.Count == 1)
+            {
+                refreshRate = (this.refreshRate * 11)/10;
+            }
+            else
+            {
+                const int postsToCount = 10;
+                for (int i = 0; i < (postDictionary.Count-1 < postsToCount ? postDictionary.Count-1 : postsToCount); i++)
+                {
+                    int timeDiff = postDictionary.Values.Reverse().ToList()[postDictionary.Count - (i + 1) - 1].time -
+                        postDictionary.Values.Reverse().ToList()[postDictionary.Count - i - 1].time;
+
+                    refreshRate += timeDiff * 1000;
+                }
+                refreshRate /= (postDictionary.Count - 1 < postsToCount ? postDictionary.Count - 1 : postsToCount);
+            }
+            return (refreshRate > 1800000? 1800000 : refreshRate);
         }
 
         public void on404()
@@ -165,22 +220,30 @@ namespace CloverLibrary
         }
 
         private UpdateEvent _updateEvent;
+        private object _context;
         public List<ChanPost> postList;
-        public UpdateThreadEventArgs(UpdateEvent s)
+        public UpdateThreadEventArgs(UpdateEvent s, object context = null)
         {
             _updateEvent = s;
+            _context = context;
         }
 
         public UpdateThreadEventArgs(UpdateEvent s, List<ChanPost> postList)
         {
             _updateEvent = s;
             this.postList = postList;
+            _context = null;
         }
 
         public UpdateEvent updateEvent
         {
             get { return _updateEvent; }
             set { _updateEvent = value; }
+        }
+        public object context
+        {
+            get { return _context; }
+            set { _context = value; }
         }
     }
 }
