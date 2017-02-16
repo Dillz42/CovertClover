@@ -486,46 +486,46 @@ namespace CovertClover
         private void addThreadWatch(CloverLibrary.ChanThread thread)
         {
             //Button threadButton = new Button();
-            StackPanel threadStackPanel = new StackPanel();
+            //StackPanel threadStackPanel = new StackPanel();
             Button title = new Button();
+            Expander expander = new Expander();
+            StackPanel expanderStackPanel = new StackPanel();
             CheckBox autoReload = new CheckBox();
             CheckBox autoSave = new CheckBox();
             Button webButton = new Button();
             Button removeButton = new Button();
             
-            //threadGrid.ColumnDefinitions.Add(new ColumnDefinition());
-            //threadGrid.ColumnDefinitions.Add(new ColumnDefinition());
-            //threadGrid.ColumnDefinitions.Add(new ColumnDefinition());
-            //threadGrid.RowDefinitions.Add(new RowDefinition());
-            //threadGrid.RowDefinitions.Add(new RowDefinition());
-            //threadGrid.RowDefinitions.Add(new RowDefinition());
-            //threadGrid.ColumnDefinitions[0].Width = GridLength.Auto;
-            //threadGrid.ColumnDefinitions[1].Width = new GridLength(1, GridUnitType.Star);
-            //threadGrid.ColumnDefinitions[2].Width = GridLength.Auto;
-
             title.Content = thread.board + "/" + thread.id+ " - " + thread.threadName;
             title.HorizontalContentAlignment = HorizontalAlignment.Left;
+            title.FlowDirection = FlowDirection.LeftToRight;
+            title.Background = Brushes.DarkGreen;
+            title.Foreground = Brushes.DarkGreen;
             title.Click += ThreadButton_Click;
-            //setGrid(title, colSpan: threadGrid.ColumnDefinitions.Count);
-            threadStackPanel.Children.Add(title);
             ToolTip titleToolTip = new ToolTip();
             titleToolTip.Content = title.Content;
             title.Margin = new Thickness(3);
             ToolTipService.SetToolTip(title, titleToolTip);
 
+            expanderStackPanel.FlowDirection = FlowDirection.LeftToRight;
+
+            expander.DataContext = thread;
+            expander.Content = expanderStackPanel;
+            expander.FlowDirection = FlowDirection.RightToLeft;
+            expander.Header = title;
+            expander.Margin = new Thickness(2);
+            expanderStackPanel.Orientation = Orientation.Vertical;
+
             autoReload.Content = "AutoReload";
             autoReload.IsChecked = thread.autoRefresh;
             autoReload.Unchecked += (s, e) => { autoSave.IsEnabled = false; autoSave.IsChecked = false; thread.autoRefresh = false; };
             autoReload.Checked += (s, e) => { autoSave.IsEnabled = true; thread.autoRefresh = true; };
-            //setGrid(autoReload, row: 1);
-            threadStackPanel.Children.Add(autoReload);
+            expanderStackPanel.Children.Add(autoReload);
 
             autoSave.Content = "Auto-save images";
             autoSave.IsChecked = thread.saveImages;
             autoSave.Unchecked += (s, e) => { thread.saveImages = false; };
             autoSave.Checked += (s, e) => { thread.saveImages = true; };
-            //setGrid(autoSave, row: 2);
-            threadStackPanel.Children.Add(autoSave);
+            expanderStackPanel.Children.Add(autoSave);
 
             webButton.Content = "Web";
             webButton.Click += (s, e) =>
@@ -533,12 +533,12 @@ namespace CovertClover
                 System.Diagnostics.Process.Start("http://boards.4chan.org/" + thread.board + "/thread/" + thread.id);
             };
             webButton.Margin = new Thickness(3);
-            threadStackPanel.Children.Add(webButton);
+            expanderStackPanel.Children.Add(webButton);
 
             removeButton.Content = "Remove";
             removeButton.Click += (s, e) => 
             {
-                ThreadWatchList.Children.Remove(threadStackPanel);
+                ThreadWatchList.Children.Remove(expander);
                 thread.autoRefresh = false;
                 thread.autoRefreshThread.Abort();
                 CloverLibrary.Global.watchFileRemove(thread);
@@ -546,20 +546,9 @@ namespace CovertClover
             };
             removeButton.Foreground = Brushes.DarkRed;
             removeButton.Margin = new Thickness(3);
-            //setGrid(removeButton, column: 2, row: 2);
-            threadStackPanel.Children.Add(removeButton);
+            expanderStackPanel.Children.Add(removeButton);
 
-            //threadButton.Content = threadGrid;
-            //threadButton.Margin = new Thickness(2);
-            //threadButton.Padding = new Thickness(5);
-            //threadButton.DataContext = post;
-            //threadButton.HorizontalContentAlignment = HorizontalAlignment.Stretch;
-            //threadGrid.MinWidth = 260;
-
-            threadStackPanel.DataContext = thread;
-            threadStackPanel.Background = Brushes.DarkGreen;
-            threadStackPanel.Margin = new Thickness(2);
-            ThreadWatchList.Children.Add(threadStackPanel);
+            ThreadWatchList.Children.Add(expander);
             CloverLibrary.Global.watchFileAdd(thread);
         }
 
@@ -595,8 +584,8 @@ namespace CovertClover
                     {
                         ThreadWatchList.Dispatcher.BeginInvoke((Action)(() =>
                         {
-                            StackPanel threadWatchStackPanel = ThreadWatchList.Children.OfType<StackPanel>().Where(sp => sp.DataContext == senderThread).First();
-                            Button threadButton = threadWatchStackPanel.Children.OfType<Button>().First();
+                            Expander threadWatchExpander = ThreadWatchList.Children.OfType<Expander>().Where(sp => sp.DataContext == senderThread).First();
+                            Button threadButton = (Button)threadWatchExpander.Header;
                             threadButton.Dispatcher.BeginInvoke((Action)(() =>
                             {
                                 int currentNewPostCount = 0;
@@ -621,12 +610,12 @@ namespace CovertClover
         {
             ThreadWatchList.Dispatcher.BeginInvoke((Action)(() =>
             {
-                StackPanel threadWatchStackPanel = ThreadWatchList.Children.OfType<StackPanel>().Where(sp => sp.DataContext == thread).First();
-                threadWatchStackPanel.Background = Brushes.Firebrick;
-                threadWatchStackPanel.Children.OfType<Button>().First().Content = 
-                    Regex.Replace(threadWatchStackPanel.Children.OfType<Button>().First().Content.ToString(),
+                Expander threadWatchExpander = ThreadWatchList.Children.OfType<Expander>().Where(sp => sp.DataContext == thread).First();
+                ((Button)threadWatchExpander.Header).Foreground = Brushes.Firebrick;
+                ((Button)threadWatchExpander.Header).Content = 
+                    Regex.Replace(((Button)threadWatchExpander.Header).Content.ToString(),
                     "(\\w+/\\d+ -)(.*)", "$1 404 -$2");
-                foreach (CheckBox checkBox in threadWatchStackPanel.Children.OfType<CheckBox>())
+                foreach (CheckBox checkBox in ((StackPanel)threadWatchExpander.Content).Children.OfType<CheckBox>())
                 {
                     checkBox.IsChecked = false;
                     checkBox.IsEnabled = false;

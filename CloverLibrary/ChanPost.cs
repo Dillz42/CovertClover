@@ -210,6 +210,7 @@ namespace CloverLibrary
                 if (System.IO.File.Exists(getThumbPath()) == false)
                 {
                     System.IO.File.WriteAllBytes(getThumbPath(), thumbData);
+                    System.IO.File.SetAttributes(getThumbPath(), System.IO.FileAttributes.ReadOnly);
                 }
             }
         }
@@ -222,6 +223,7 @@ namespace CloverLibrary
                 if (System.IO.File.Exists(getImagePath()) == false)
                 {
                     System.IO.File.WriteAllBytes(getImagePath(), imageData);
+                    System.IO.File.SetAttributes(getImagePath(), System.IO.FileAttributes.ReadOnly);
                 } 
             }
         }
