@@ -91,7 +91,7 @@ namespace CloverLibrary
                             {
                                 if (e.Message == "404-NotFound")
                                 {
-                                    System.Diagnostics.Debug.WriteLine("Thread " + id + " has 404'd");
+                                    Global.log(this + "Thread has 404'd");
                                     OnRaiseUpdateThreadEvent(new UpdateThreadEventArgs(UpdateThreadEventArgs.UpdateEvent.thread404));
                                     break;
                                 }
@@ -100,13 +100,14 @@ namespace CloverLibrary
                             }
                             if (postDictionary.Count > oldReplyCount)
                             {
+                                Global.log(this, "New posts found! Updating UI and saving thread");
                                 List<ChanPost> postList = postDictionary.Values.Skip(oldReplyCount).ToList();
-
                                 OnRaiseUpdateThreadEvent(new UpdateThreadEventArgs(UpdateThreadEventArgs.UpdateEvent.newPosts, postList));
                                 await saveThread();
                             }
                         }
                         refreshRate = calculateRefreshRate();
+                        Global.log(this, "Sleeping watch thread for " + refreshRate);
                         await Task.Delay(refreshRate);
 
                     }
@@ -133,9 +134,10 @@ namespace CloverLibrary
 
         public void addPost(ChanPost post)
         {
+            post.thread = this;
+            Global.log(post, "Adding post to thread");
             postDictionary.Add(post.no, post);
             ((JArray)json["posts"]).Add(post.json);
-            post.thread = this;
             if(post.resto == 0)
             {
                 threadName = post.sub != "" ? post.sub : 

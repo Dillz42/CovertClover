@@ -297,94 +297,99 @@ namespace CovertClover
             setGrid(textBlockSubject, colSpan: 2);
             retVal.Children.Add(textBlockSubject);
 
-            try
+            if (post.ext != "")
             {
-                await post.loadThumb();
-            }
-            catch (System.Threading.Tasks.TaskCanceledException)
-            {
-                return retVal;
-            }
-
-            BitmapImage source = new BitmapImage();
-            source.BeginInit();
-            source.StreamSource = new System.IO.MemoryStream(post.thumbData);
-            source.CacheOption = BitmapCacheOption.OnLoad;
-            source.EndInit();
-            source.Freeze();
-
-            Image img = new Image();
-            img.Source = source;
-            img.MaxWidth = post.tn_w;
-            img.HorizontalAlignment = HorizontalAlignment.Left;
-            img.VerticalAlignment = VerticalAlignment.Top;
-
-            if(post.replyList.Count > 0)
-            {
-                TextBlock replyTextBlock = new TextBlock();
-                replyTextBlock.Foreground = Brushes.Blue;
-                replyTextBlock.TextWrapping = TextWrapping.Wrap;
-                foreach (int replyFrom in post.replyList)
+                try
                 {
-                    replyTextBlock.Text += ">" + replyFrom + "  ";
+                    await post.loadThumb();
                 }
-                setGrid(replyTextBlock, row: 1, colSpan: 2);
-                retVal.Children.Add(replyTextBlock);
-            }
+                catch (System.Threading.Tasks.TaskCanceledException)
+                {
+                    return retVal;
+                }
 
-            ToolTip imageToolTip = new ToolTip();
-            StackPanel toolTipStackPanel = new StackPanel();
-            TextBlock toolTipTextBlock = new TextBlock();
-            FrameworkElement toolTipImage;
-            if (post.ext == ".gif" || post.ext == ".webm")
-            {
-                toolTipImage = new MediaElement();
-            } else {
-                toolTipImage = new Image();
-            }
+                BitmapImage source = new BitmapImage();
+                source.BeginInit();
+                source.StreamSource = new System.IO.MemoryStream(post.thumbData);
+                source.CacheOption = BitmapCacheOption.OnLoad;
+                source.EndInit();
+                source.Freeze();
 
-            toolTipStackPanel.Orientation = Orientation.Vertical;
+                Image img = new Image();
+                img.Source = source;
+                img.MaxWidth = post.tn_w;
+                img.HorizontalAlignment = HorizontalAlignment.Left;
+                img.VerticalAlignment = VerticalAlignment.Top;
 
-            toolTipTextBlock.Text = post.tim + "-" + post.filename + post.ext + " - " + post.w + " x " + post.h;
-            toolTipStackPanel.Children.Add(toolTipTextBlock);
+                if (post.replyList.Count > 0)
+                {
+                    TextBlock replyTextBlock = new TextBlock();
+                    replyTextBlock.Foreground = Brushes.Blue;
+                    replyTextBlock.TextWrapping = TextWrapping.Wrap;
+                    foreach (int replyFrom in post.replyList)
+                    {
+                        replyTextBlock.Text += ">" + replyFrom + "  ";
+                    }
+                    setGrid(replyTextBlock, row: 1, colSpan: 2);
+                    retVal.Children.Add(replyTextBlock);
+                }
 
-            imageToolTip.Loaded += async (ls, le) =>
-            {
-                await post.loadImage();
-                BitmapImage imageToolTipSource = new BitmapImage();
+                ToolTip imageToolTip = new ToolTip();
+                StackPanel toolTipStackPanel = new StackPanel();
+                TextBlock toolTipTextBlock = new TextBlock();
+                FrameworkElement toolTipImage;
                 if (post.ext == ".gif" || post.ext == ".webm")
                 {
-                    try
-                    {
-                        ((MediaElement)toolTipImage).Source = new Uri(
-                        CloverLibrary.Global.BASE_IMAGE_URL + post.thread.board + "/" + post.tim + post.ext);
-                    }
-                    catch (Exception ex)
-                    {
-                        MessageBox.Show(ex.Message + "\n\n" + ex.StackTrace);
-                        throw;
-                    }
+                    toolTipImage = new MediaElement();
                 }
                 else
                 {
-                    imageToolTipSource.BeginInit();
-                    imageToolTipSource.StreamSource = new System.IO.MemoryStream(post.imageData);
-                    imageToolTipSource.CacheOption = BitmapCacheOption.OnLoad;
-                    imageToolTipSource.EndInit();
-                    imageToolTipSource.Freeze();
-                    ((Image)toolTipImage).Source = imageToolTipSource;
+                    toolTipImage = new Image();
                 }
-                double workingHeight = SystemParameters.WorkArea.Height * .85;
-                toolTipImage.MaxWidth = post.w > SystemParameters.WorkArea.Width ? SystemParameters.WorkArea.Width : post.w;
-                toolTipImage.MaxHeight = post.h > workingHeight ? workingHeight : post.h;
-            };
-            toolTipStackPanel.Children.Add(toolTipImage);
-            imageToolTip.Content = toolTipStackPanel;
-            ToolTipService.SetShowDuration(img, int.MaxValue);
-            ToolTipService.SetInitialShowDelay(img, 0);
-            ToolTipService.SetToolTip(img, imageToolTip);
-            setGrid(img, row: 2);
-            retVal.Children.Add(img);
+
+                toolTipStackPanel.Orientation = Orientation.Vertical;
+
+                toolTipTextBlock.Text = post.tim + "-" + post.filename + post.ext + " - " + post.w + " x " + post.h;
+                toolTipStackPanel.Children.Add(toolTipTextBlock);
+
+                imageToolTip.Loaded += async (ls, le) =>
+                {
+                    await post.loadImage();
+                    BitmapImage imageToolTipSource = new BitmapImage();
+                    if (post.ext == ".gif" || post.ext == ".webm")
+                    {
+                        try
+                        {
+                            ((MediaElement)toolTipImage).Source = new Uri(
+                            CloverLibrary.Global.BASE_IMAGE_URL + post.thread.board + "/" + post.tim + post.ext);
+                        }
+                        catch (Exception ex)
+                        {
+                            MessageBox.Show(ex.Message + "\n\n" + ex.StackTrace);
+                            throw;
+                        }
+                    }
+                    else
+                    {
+                        imageToolTipSource.BeginInit();
+                        imageToolTipSource.StreamSource = new System.IO.MemoryStream(post.imageData);
+                        imageToolTipSource.CacheOption = BitmapCacheOption.OnLoad;
+                        imageToolTipSource.EndInit();
+                        imageToolTipSource.Freeze();
+                        ((Image)toolTipImage).Source = imageToolTipSource;
+                    }
+                    double workingHeight = SystemParameters.WorkArea.Height * .85;
+                    toolTipImage.MaxWidth = post.w > SystemParameters.WorkArea.Width ? SystemParameters.WorkArea.Width : post.w;
+                    toolTipImage.MaxHeight = post.h > workingHeight ? workingHeight : post.h;
+                };
+                toolTipStackPanel.Children.Add(toolTipImage);
+                imageToolTip.Content = toolTipStackPanel;
+                ToolTipService.SetShowDuration(img, int.MaxValue);
+                ToolTipService.SetInitialShowDelay(img, 0);
+                ToolTipService.SetToolTip(img, imageToolTip);
+                setGrid(img, row: 2);
+                retVal.Children.Add(img); 
+            }
 
             TextBlock textBlockComment = new TextBlock();
             textBlockComment.FontSize = 14;

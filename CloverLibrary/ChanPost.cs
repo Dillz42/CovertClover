@@ -133,14 +133,17 @@ namespace CloverLibrary
 
         public async Task loadThumb(CancellationToken cancellationToken = new CancellationToken())
         {
-            if (thumbData == null)
+            if (ext != "" && thumbData == null)
             {
+
                 if (System.IO.File.Exists(getThumbPath()) == true)
                 {
+                    Global.log(this, "Loading thumb from web '" + getThumbPath() + "'");
                     thumbData = System.IO.File.ReadAllBytes(getThumbPath());
                 }
                 else
                 {
+                    Global.log(this, "Loading thumb from web '" + getThumbPath() + "'");
                     try
                     {
                         thumbData = await WebTools.httpRequestByteArry(
@@ -168,14 +171,16 @@ namespace CloverLibrary
 
         public async Task loadImage(CancellationToken cancellationToken = new CancellationToken())
         {
-            if (imageData == null)
+            if (ext != "" && imageData == null)
             {
                 if (System.IO.File.Exists(getImagePath()) == true)
                 {
+                    Global.log(this, "Loading image from file '" + getImagePath() + "'");
                     imageData = System.IO.File.ReadAllBytes(getImagePath());
                 }
                 else
                 {
+                    Global.log(this, "Loading image from web '" + getImagePath() + "'");
                     try
                     {
                         imageData = await WebTools.httpRequestByteArry(
@@ -209,8 +214,13 @@ namespace CloverLibrary
             {
                 if (System.IO.File.Exists(getThumbPath()) == false)
                 {
+                    Global.log(this, "Saving thumb '" + getThumbPath() + "'");
                     System.IO.File.WriteAllBytes(getThumbPath(), thumbData);
                     System.IO.File.SetAttributes(getThumbPath(), System.IO.FileAttributes.ReadOnly);
+                }
+                else
+                {
+                    Global.log(this, "Thumb exists '" + getThumbPath() + "'");
                 }
             }
         }
@@ -222,9 +232,14 @@ namespace CloverLibrary
                 await loadImage(cancellationToken);
                 if (System.IO.File.Exists(getImagePath()) == false)
                 {
+                    Global.log(this, "Saving image '" + getImagePath() + "'");
                     System.IO.File.WriteAllBytes(getImagePath(), imageData);
                     System.IO.File.SetAttributes(getImagePath(), System.IO.FileAttributes.ReadOnly);
                 } 
+                else
+                {
+                    Global.log(this, "Image exists '" + getImagePath() + "'");
+                }
             }
         }
     }

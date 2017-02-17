@@ -18,6 +18,7 @@ namespace CloverLibrary
         public const string SAVE_DIR = "D:\\Downloads\\PicsAndVids\\FromChan\\";
         public const string THUMBS_FOLDER_NAME = "thumbs\\";
         private const string WATCH_FILE_PATH = "watchFile.dat";
+        private const string LOG_FILE = "Clover.log";
 
         private static SortedDictionary<int, ChanThread> threadDictionary = new SortedDictionary<int, ChanThread>();
         private static Mutex threadDictionaryMutex = new Mutex();
@@ -101,8 +102,16 @@ namespace CloverLibrary
                 ChanPost post = new ChanPost(jsonPost);
                 if (thread.postDictionary.ContainsKey(post.no) == false)
                 {
-                    thread.addPost(post);
-                    jsonPost.Remove("last_replies");
+                    try
+                    {
+                        thread.addPost(post);
+                        jsonPost.Remove("last_replies");
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debugger.Break();
+                        throw;
+                    }
 
                     Regex regex = new Regex("<a href=\"#p(?<reply>\\d+)\" class=\"quotelink\">>>\\d+</a>");
                     MatchCollection matches = regex.Matches(post.com);
@@ -220,6 +229,36 @@ namespace CloverLibrary
                 retVal.Add(thread);
             }
             return retVal;
+        }
+
+        static Mutex logMutex = new Mutex();
+        public static void log(string message,
+            [System.Runtime.CompilerServices.CallerMemberName] string memberName = "",
+            [System.Runtime.CompilerServices.CallerFilePath] string sourceFilePath = "",
+            [System.Runtime.CompilerServices.CallerLineNumber] int sourceLineNumber = 0)
+        {
+            string logMessage = DateTime.Now.ToString("yyyy-MM-dd-HH:mm:ss:ffff") + "|" + 
+                sourceFilePath.Substring(sourceFilePath.LastIndexOf('\\') + 1) + "|" + 
+                memberName + "|" + sourceLineNumber + "|" + message + "\n";
+            System.Diagnostics.Debug.WriteLine(logMessage);
+            logMutex.WaitOne();
+            System.IO.File.AppendAllText(LOG_FILE, logMessage);
+            logMutex.ReleaseMutex();
+        }
+        public static void log(ChanThread thread, string message,
+            [System.Runtime.CompilerServices.CallerMemberName] string memberName = "",
+            [System.Runtime.CompilerServices.CallerFilePath] string sourceFilePath = "",
+            [System.Runtime.CompilerServices.CallerLineNumber] int sourceLineNumber = 0)
+        {
+            log(thread.id + ": " + message, memberName, sourceFilePath, sourceLineNumber);
+        }
+        public static void log(ChanPost post, string message,
+            [System.Runtime.CompilerServices.CallerMemberName] string memberName = "",
+            [System.Runtime.CompilerServices.CallerFilePath] string sourceFilePath = "",
+            [System.Runtime.CompilerServices.CallerLineNumber] int sourceLineNumber = 0)
+        {
+            System.Diagnostics.StackTrace t = new System.Diagnostics.StackTrace();
+            log(post.thread.id + "-" + post.no + ": " + message, memberName, sourceFilePath, sourceLineNumber);
         }
     }
 }
