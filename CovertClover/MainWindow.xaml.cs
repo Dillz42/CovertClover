@@ -111,7 +111,7 @@ namespace CovertClover
                         {
                             continue;
                         }
-                        UIElement threadElement = await convertPostToUIElement(thread.postDictionary.Values.First());
+                        UIElement threadElement = await convertPostToUIElement(thread.postDictionary.Values.First(), true);
                         if (tokenSource.IsCancellationRequested)
                         {
                             return;
@@ -207,7 +207,7 @@ namespace CovertClover
                 {
                     try
                     {
-                        ThreadList.Children.Add(await convertPostToUIElement(post, tokenSource.Token));
+                        ThreadList.Children.Add(await convertPostToUIElement(post, token: tokenSource.Token));
                     }
                     catch (Exception ex)
                     {
@@ -274,7 +274,7 @@ namespace CovertClover
             Grid.SetRowSpan(element, rowSpan);
         }
 
-        private async Task<UIElement> convertPostToUIElement(CloverLibrary.ChanPost post, 
+        private async Task<UIElement> convertPostToUIElement(CloverLibrary.ChanPost post, bool lastReplies = false,
             System.Threading.CancellationToken token = new System.Threading.CancellationToken())
         {
             Grid retVal = new Grid();
@@ -461,12 +461,23 @@ namespace CovertClover
             setGrid(textBlockComment, column: 1, row: 2);
             retVal.Children.Add(textBlockComment);
             
-            if (post.resto == 0)
+            if (post.resto == 0 && lastReplies)
             {
                 Button button = new Button();
+                StackPanel buttonStackPanel = new StackPanel();
+                StackPanel lastRepliesStackPanel = new StackPanel();
+
+                lastRepliesStackPanel.Orientation = Orientation.Horizontal;
+                foreach (CloverLibrary.ChanPost reply_post in post.last_replies)
+                {
+                    lastRepliesStackPanel.Children.Add(await convertPostToUIElement(reply_post, true, token));
+                }
+
+                buttonStackPanel.Children.Add(retVal);
+                buttonStackPanel.Children.Add(lastRepliesStackPanel);
 
                 button.HorizontalContentAlignment = HorizontalAlignment.Left;
-                button.Content = retVal;
+                button.Content = buttonStackPanel;
                 button.Margin = new Thickness(2);
                 button.Click += (cs, ce) =>
                 {
@@ -477,14 +488,25 @@ namespace CovertClover
             }
             else
             {
-                Separator seperator = new Separator();
-                seperator.Foreground = Brushes.Blue;
-                seperator.Background = Brushes.Green;
-                seperator.BorderBrush = Brushes.Pink;
-                setGrid(seperator, row: 3, colSpan: 2);
-                retVal.Children.Add(seperator);
+                if (lastReplies)
+                {
+                    Border border = new Border();
+                    border.BorderBrush = Brushes.DarkGreen;
+                    border.BorderThickness = new Thickness(2);
+                    border.Child = retVal;
+                    return border;
+                }
+                else
+                {
+                    Separator seperator = new Separator();
+                    seperator.Foreground = Brushes.Blue;
+                    seperator.Background = Brushes.Green;
+                    seperator.BorderBrush = Brushes.Pink;
+                    setGrid(seperator, row: 3, colSpan: 2);
 
-                return retVal;
+                    retVal.Children.Add(seperator);
+                    return retVal;
+                }
             }
         }
 

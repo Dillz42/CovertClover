@@ -56,8 +56,8 @@ namespace CloverLibrary
                 {
                     if (threadDictionary.ContainsKey((int)jsonThread["no"]) == false)
                     {
-                        ChanPost op = new ChanPost(jsonThread);
-                        ChanThread thread = new ChanThread(board, op.no);
+                        ChanThread thread = new ChanThread(board, (int)jsonThread["no"]);
+                        ChanPost op = new ChanPost(jsonThread, thread);
                         thread.addPost(op);
                         threadDictionaryMutex.WaitOne();
                         threadDictionary.Add((int)jsonThread["no"], thread);
@@ -99,7 +99,7 @@ namespace CloverLibrary
 
             foreach (JObject jsonPost in (JArray)jsonObject["posts"])
             {
-                ChanPost post = new ChanPost(jsonPost);
+                ChanPost post = new ChanPost(jsonPost, thread);
                 if (thread.postDictionary.ContainsKey(post.no) == false)
                 {
                     try

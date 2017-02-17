@@ -51,6 +51,8 @@ namespace CloverLibrary
         public string tag;
         public string semantic_url;
 
+        public List<ChanPost> last_replies = new List<ChanPost>();
+
         public List<int> replyList = new List<int>();
         public void addReplyNum(int reply)
         {
@@ -69,7 +71,7 @@ namespace CloverLibrary
         {
             
         }
-        public ChanPost(JObject jsonObject)
+        public ChanPost(JObject jsonObject, ChanThread thread)
         {
             no = (int)(jsonObject["no"] ?? 0);
             resto = (int)(jsonObject["resto"] ?? 0);
@@ -109,10 +111,20 @@ namespace CloverLibrary
             last_modified = (int)(jsonObject["last_modified"] ?? 0);
             tag = (string)(jsonObject["tag"] ?? "");
             semantic_url = (string)(jsonObject["semantic_url"] ?? "");
-            
+
+            if (jsonObject["last_replies"] != null)
+            {
+                foreach (JObject post in jsonObject["last_replies"])
+                {
+                    ChanPost reply_post = new ChanPost(post, thread);
+                    last_replies.Add(reply_post);
+                } 
+            }
+
             com = com.Replace("<br>", "\n");
             com = System.Net.WebUtility.HtmlDecode(com);
 
+            this.thread = thread;
             json = jsonObject;
         }
 
