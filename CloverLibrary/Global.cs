@@ -15,7 +15,7 @@ namespace CloverLibrary
         public const string BASE_IMAGE_URL = "http://i.4cdn.org/";
         public const string BACK_IMAGE_URL = "http://is2.4chan.org/";
         public const string DEFAULT_IMAGE = "http://s.4cdn.org/image/fp/logo-transparent.png";
-        public const string SAVE_DIR = "D:\\Downloads\\PicsAndVids\\FromChan\\";
+        public const string SAVE_DIR = "D:\\Downloads\\PicsAndVids\\FromChan-TESTS\\";
         public const string THUMBS_FOLDER_NAME = "thumbs\\";
         private const string WATCH_FILE_PATH = "watchFile.dat";
         private const string LOG_FILE = "Clover.log";

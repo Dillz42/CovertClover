@@ -60,8 +60,13 @@ namespace CloverLibrary
             }
         }
 
-        public byte[] imageData = null;
-        public byte[] thumbData = null;
+        private byte[] imageData = null;
+        private byte[] thumbData = null;
+
+        public bool thumbInMem = false;
+        public bool thumbSaved = false;
+        public bool imageInMem = false;
+        public bool imageSaved = false;
 
         public ChanThread thread;
 
@@ -140,6 +145,8 @@ namespace CloverLibrary
                 {
                     Global.log(this, "Loading thumb from web '" + getThumbPath() + "'");
                     thumbData = System.IO.File.ReadAllBytes(getThumbPath());
+                    thumbSaved = true;
+                    thumbInMem = true;
                 }
                 else
                 {
@@ -165,6 +172,7 @@ namespace CloverLibrary
                             throw;
                         }
                     }
+                    thumbInMem = true;
                 }
             }
         }
@@ -177,6 +185,8 @@ namespace CloverLibrary
                 {
                     Global.log(this, "Loading image from file '" + getImagePath() + "'");
                     imageData = System.IO.File.ReadAllBytes(getImagePath());
+                    imageInMem = true;
+                    imageSaved = true;
                 }
                 else
                 {
@@ -203,7 +213,42 @@ namespace CloverLibrary
                             throw;
                         }
                     }
+                    imageInMem = true;
                 }
+            }
+        }
+
+        public async Task<byte[]> getThumbData()
+        {
+            if (thumbSaved)
+            {
+                return System.IO.File.ReadAllBytes(getThumbPath());
+            }
+            else if (thumbInMem)
+            {
+                return thumbData;
+            }
+            else
+            {
+                return await WebTools.httpRequestByteArry(
+                            Global.BASE_IMAGE_URL + thread.board + "/" + tim + "s.jpg");
+            }
+        }
+
+        public async Task<byte[]> getImageData()
+        {
+            if(imageSaved)
+            {
+                return System.IO.File.ReadAllBytes(getImagePath());
+            }
+            else if (imageInMem)
+            {
+                return imageData;
+            }
+            else
+            {
+                return await WebTools.httpRequestByteArry(
+                            Global.BASE_IMAGE_URL + thread.board + "/" + tim + ext);
             }
         }
 
@@ -222,6 +267,8 @@ namespace CloverLibrary
                 {
                     Global.log(this, "Thumb exists '" + getThumbPath() + "'");
                 }
+                thumbSaved = true;
+                clearThumbData();
             }
         }
 
@@ -240,7 +287,21 @@ namespace CloverLibrary
                 {
                     Global.log(this, "Image exists '" + getImagePath() + "'");
                 }
+                imageSaved = true;
+                clearImageData();
             }
+        }
+
+        public void clearThumbData()
+        {
+            thumbData = null;
+            thumbInMem = false;
+        }
+
+        public void clearImageData()
+        {
+            imageData = null;
+            imageInMem = false;
         }
     }
 }

@@ -182,7 +182,7 @@ namespace CovertClover
                 ((ScrollViewer)ThreadList.Parent).ScrollToTop();
 
                 CloverLibrary.ChanThread senderThread = ((CloverLibrary.ChanThread)((Button)sender).DataContext);
-                Title = Regex.Replace(Title, "(\\w+ - .*?) : .*", "$1 : " + senderThread.threadName);
+                Title = senderThread.board + "/" + senderThread.id + " - " + senderThread.threadName;
                 ((Button)sender).Content = Regex.Replace(((Button)sender).Content.ToString(), "\\(\\d+\\) - (.*)", "$1");
                 currentThread = senderThread.id;
                 try
@@ -310,7 +310,7 @@ namespace CovertClover
 
                 BitmapImage source = new BitmapImage();
                 source.BeginInit();
-                source.StreamSource = new System.IO.MemoryStream(post.thumbData);
+                source.StreamSource = new System.IO.MemoryStream(await post.getThumbData());
                 source.CacheOption = BitmapCacheOption.OnLoad;
                 source.EndInit();
                 source.Freeze();
@@ -360,8 +360,18 @@ namespace CovertClover
                     {
                         try
                         {
-                            ((MediaElement)toolTipImage).Source = new Uri(
-                            CloverLibrary.Global.BASE_IMAGE_URL + post.thread.board + "/" + post.tim + post.ext);
+                            if (post.imageSaved)
+                            {
+                                ((MediaElement)toolTipImage).Source = new Uri(post.getImagePath());
+                                CloverLibrary.Global.log("Loading animated from file");
+                            }
+                            else
+                            {
+                                ((MediaElement)toolTipImage).Source = new Uri(
+                                    CloverLibrary.Global.BASE_IMAGE_URL + post.thread.board + "/" + post.tim + post.ext);
+                                CloverLibrary.Global.log("Loading animated from web");
+                            }
+                            ((MediaElement)toolTipImage).Volume = 1;
                         }
                         catch (Exception ex)
                         {
@@ -372,7 +382,7 @@ namespace CovertClover
                     else
                     {
                         imageToolTipSource.BeginInit();
-                        imageToolTipSource.StreamSource = new System.IO.MemoryStream(post.imageData);
+                        imageToolTipSource.StreamSource = new System.IO.MemoryStream(await post.getImageData());
                         imageToolTipSource.CacheOption = BitmapCacheOption.OnLoad;
                         imageToolTipSource.EndInit();
                         imageToolTipSource.Freeze();
