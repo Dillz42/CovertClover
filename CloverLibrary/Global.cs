@@ -145,9 +145,9 @@ namespace CloverLibrary
             return retVal;
         }
 
-        public static List<ChanPost> getThread(int threadNumber, string board = "b", CancellationToken cancellationToken = new CancellationToken())
+        public static ChanThread getThread(int threadNumber, string board = "b", CancellationToken cancellationToken = new CancellationToken())
         {
-            return threadDictionary[threadNumber].postDictionary.Values.ToList();
+            return threadDictionary[threadNumber];
         }
 
         public static string MakeSafeFilename(string filename, char replaceChar = '_')

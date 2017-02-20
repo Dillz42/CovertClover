@@ -179,6 +179,10 @@ namespace CovertClover
                 tokenSourceList.Add(tokenSource);
 
                 ThreadList.Children.Clear();
+                if (currentThread != 0)
+                {
+                    CloverLibrary.Global.getThread(currentThread).memoryClear(); 
+                }
                 ((ScrollViewer)ThreadList.Parent).ScrollToTop();
 
                 CloverLibrary.ChanThread senderThread = ((CloverLibrary.ChanThread)((Button)sender).DataContext);

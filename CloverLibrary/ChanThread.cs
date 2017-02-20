@@ -182,6 +182,25 @@ namespace CloverLibrary
             System.IO.File.WriteAllText(dir + "thread.json", json.ToString());
         }
 
+        public async void memoryLoad()
+        {
+            foreach (ChanPost post in postDictionary.Values)
+            {
+                await post.loadThumb();
+            }
+        }
+
+        public void memoryClear()
+        {
+            Global.log(this, "Clearing thread from memory");
+            foreach (ChanPost post in postDictionary.Values)
+            {
+                post.clearImageData();
+                post.clearThumbData();
+            }
+            GC.Collect(0, GCCollectionMode.Forced);
+        }
+
         public int calculateRefreshRate()
         {
             int refreshRate = 0;
