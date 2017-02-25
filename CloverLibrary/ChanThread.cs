@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
 using Newtonsoft.Json.Linq;
+using System.Text.RegularExpressions;
 
 namespace CloverLibrary
 {
@@ -20,15 +21,13 @@ namespace CloverLibrary
         public SortedDictionary<int, ChanPost> postDictionary = new SortedDictionary<int, ChanPost>();
 
         public Thread autoRefreshThread;
+        private CancellationTokenSource threadTokenSource = new CancellationTokenSource();
 
         private bool _autoRefresh;
         private bool _saveImages;
-        public bool autoRefresh
+        public bool AutoRefresh
         {
-            get
-            {
-                return _autoRefresh;
-            }
+            get => _autoRefresh;
             set
             {
                 _autoRefresh = value;
@@ -43,20 +42,18 @@ namespace CloverLibrary
                     }
                     
                 }
-                Global.watchFileAdd(this);
+                Global.WatchFileAdd(this);
             }
         }
 
-        public bool saveImages
+        public bool SaveImages
         {
-            get
-            {
-                return _saveImages;
-            }
+            get => _saveImages;
             set
             {
                 _saveImages = value;
-                Global.watchFileAdd(this);
+                Global.WatchFileAdd(this);
+                threadTokenSource.Cancel();
             }
         }
 
@@ -77,7 +74,7 @@ namespace CloverLibrary
             {
                 try
                 {
-                    await saveThread();
+                    await SaveThreadAsync();
                     while (true)
                     {
                         if (_autoRefresh)
@@ -85,13 +82,13 @@ namespace CloverLibrary
                             int oldReplyCount = postDictionary.Count;
                             try
                             {
-                                await Global.loadThread(this);
+                                await UpdateThreadAsync();
                             }
                             catch (Exception e)
                             {
                                 if (e.Message == "404-NotFound")
                                 {
-                                    Global.log(this + "Thread has 404'd");
+                                    Global.Log(this + "Thread has 404'd");
                                     OnRaiseUpdateThreadEvent(new UpdateThreadEventArgs(UpdateThreadEventArgs.UpdateEvent.thread404));
                                     break;
                                 }
@@ -100,16 +97,20 @@ namespace CloverLibrary
                             }
                             if (postDictionary.Count > oldReplyCount)
                             {
-                                Global.log(this, "New posts found! Updating UI and saving thread");
+                                Global.Log(this, "New posts found! Updating UI and saving thread");
                                 List<ChanPost> postList = postDictionary.Values.Skip(oldReplyCount).ToList();
                                 OnRaiseUpdateThreadEvent(new UpdateThreadEventArgs(UpdateThreadEventArgs.UpdateEvent.newPosts, postList));
-                                await saveThread();
+                                await SaveThreadAsync();
                             }
                         }
-                        refreshRate = calculateRefreshRate();
-                        Global.log(this, "Sleeping watch thread for " + refreshRate);
-                        await Task.Delay(refreshRate);
+                        refreshRate = CalculateRefreshRate();
+                        Global.Log(this, "Sleeping watch thread for " + refreshRate);
 
+                        try
+                        {
+                            await Task.Delay(refreshRate, threadTokenSource.Token);
+                        } catch (TaskCanceledException){}
+                        threadTokenSource = new CancellationTokenSource();
                     }
                 }
                 catch (ThreadAbortException ex)
@@ -132,10 +133,10 @@ namespace CloverLibrary
             return other.postDictionary.First().Value.sticky - postDictionary.First().Value.sticky;
         }
 
-        public void addPost(ChanPost post)
+        public void AddPost(ChanPost post)
         {
             post.thread = this;
-            Global.log(post, "Adding post to thread");
+            Global.Log(post, "Adding post to thread");
             postDictionary.Add(post.no, post);
             ((JArray)json["posts"]).Add(post.json);
             if(post.resto == 0)
@@ -146,19 +147,63 @@ namespace CloverLibrary
             }
         }
 
-        public void updateThread(JObject jsonThread)
+        public async Task LoadThreadAsync(CancellationToken cancellationToken = new CancellationToken())
         {
-            //System.Diagnostics.Debugger.Break();
+            await LoadThreadFileAsync();
+            await UpdateThreadAsync();
         }
 
-        public string getDir()
+        public async Task LoadThreadFileAsync(CancellationToken cancellationToken = new CancellationToken())
+        {
+            
+        }
+
+        public void UpdateThread() { Task t = UpdateThreadAsync(); }
+        public async Task UpdateThreadAsync()
+        {
+            string address = Global.BASE_URL + board + "/thread/" + id + ".json";
+            JObject jsonObject = (JObject)await WebTools.httpRequestParse(address, JObject.Parse);
+
+            foreach (JObject jsonPost in (JArray)jsonObject["posts"])
+            {
+                ChanPost post = new ChanPost(jsonPost);
+                if (postDictionary.ContainsKey(post.no) == false)
+                {
+                    try
+                    {
+                        AddPost(post);
+                        jsonPost.Remove("last_replies");
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debugger.Break();
+                        throw;
+                    }
+
+                    Regex regex = new Regex("<a href=\"#p(?<reply>\\d+)\" class=\"quotelink\">>>\\d+</a>");
+                    MatchCollection matches = regex.Matches(post.com);
+                    foreach (Match match in matches)
+                    {
+                        int replyTo = int.Parse(match.Groups["reply"].ToString());
+                        postDictionary[replyTo].addReplyNum(post.no);
+                    }
+                    post.com = regex.Replace(post.com, ">>$1");
+                }
+                else
+                {
+                    postDictionary[post.no].Update(post);
+                }
+            }
+        }
+
+        public string GetDir()
         {
             return Global.SAVE_DIR + board + "-" + id + "-" + dirName + "\\";
         }
 
-        public async Task saveThread(CancellationToken cancellationToken = new CancellationToken())
+        public async Task SaveThreadAsync(CancellationToken cancellationToken = new CancellationToken())
         {
-            string dir = getDir();
+            string dir = GetDir();
 
             if (System.IO.Directory.Exists(dir) == false)
             {
@@ -169,39 +214,38 @@ namespace CloverLibrary
                 System.IO.Directory.CreateDirectory(dir + Global.THUMBS_FOLDER_NAME);
             }
 
+            System.IO.File.WriteAllText(dir + "thread.json", json.ToString());
             foreach (ChanPost post in postDictionary.Values)
             {
-                await post.saveThumb(dir, cancellationToken);
-                if (saveImages)
+                await post.SaveThumbAsync(dir, cancellationToken);
+                if (SaveImages)
                 {
-                    await post.loadImage();
-                    await post.saveImage(dir, cancellationToken);
+                    await post.LoadImageAsync();
+                    await post.SaveImageAsync(dir, cancellationToken);
                 }
             }
-            
-            System.IO.File.WriteAllText(dir + "thread.json", json.ToString());
         }
 
-        public async void memoryLoad()
+        public async Task MemoryLoadAsync()
         {
             foreach (ChanPost post in postDictionary.Values)
             {
-                await post.loadThumb();
+                await post.LoadThumbAsync();
             }
         }
 
-        public void memoryClear()
+        public void MemoryClear()
         {
-            Global.log(this, "Clearing thread from memory");
+            Global.Log(this, "Clearing thread from memory");
             foreach (ChanPost post in postDictionary.Values)
             {
-                post.clearImageData();
-                post.clearThumbData();
+                post.ClearImageData();
+                post.ClearThumbData();
             }
             GC.Collect(0, GCCollectionMode.Forced);
         }
 
-        public int calculateRefreshRate()
+        public int CalculateRefreshRate()
         {
             int refreshRate = 0;
             if (postDictionary.Count == 1)
@@ -223,10 +267,10 @@ namespace CloverLibrary
             return (refreshRate > 1800000? 1800000 : refreshRate);
         }
 
-        public void on404()
+        public void On404()
         {
-            autoRefresh = false;
-            saveImages = false;
+            AutoRefresh = false;
+            SaveImages = false;
             autoRefreshThread.Abort();
         }
     }
@@ -256,12 +300,12 @@ namespace CloverLibrary
             _context = null;
         }
 
-        public UpdateEvent updateEvent
+        public UpdateEvent Update_Event
         {
             get { return _updateEvent; }
             set { _updateEvent = value; }
         }
-        public object context
+        public object Context
         {
             get { return _context; }
             set { _context = value; }

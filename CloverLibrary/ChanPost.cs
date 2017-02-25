@@ -121,112 +121,59 @@ namespace CloverLibrary
             json = jsonObject;
         }
 
-        public void update(ChanPost newData)
+        public void Update(ChanPost newData)
         {
             filedeleted = newData.filedeleted;
         }
 
-        public string getThumbPath()
+        public string ThumbPath
         {
-            return thread.getDir() + Global.THUMBS_FOLDER_NAME + Global.MakeSafeFilename(tim + "s.jpg");
+            get
+            {
+                return thread.GetDir() + Global.THUMBS_FOLDER_NAME + Global.MakeSafeFilename(tim + "s.jpg");
+            }
         }
 
-        public string getImagePath()
+        public string ImagePath
         {
-            return thread.getDir() + Global.MakeSafeFilename(tim + "-" + filename + ext);
+            get
+            {
+                return thread.GetDir() + Global.MakeSafeFilename(tim + "-" + filename + ext);
+            }
         }
 
-        public async Task loadThumb(CancellationToken cancellationToken = new CancellationToken())
+        public void LoadThumb(CancellationToken cancellationToken = new CancellationToken())
+        { Task t = LoadThumbAsync(cancellationToken);}
+        public async Task LoadThumbAsync(CancellationToken cancellationToken = new CancellationToken())
         {
             if (ext != "" && thumbData == null)
             {
-
-                if (System.IO.File.Exists(getThumbPath()) == true)
-                {
-                    Global.log(this, "Loading thumb from web '" + getThumbPath() + "'");
-                    thumbData = System.IO.File.ReadAllBytes(getThumbPath());
-                    thumbSaved = true;
-                    thumbInMem = true;
-                }
-                else
-                {
-                    Global.log(this, "Loading thumb from web '" + getThumbPath() + "'");
-                    try
-                    {
-                        thumbData = await WebTools.httpRequestByteArry(
-                            Global.BASE_IMAGE_URL + thread.board + "/" + tim + "s.jpg", cancellationToken);
-                    }
-                    catch (TaskCanceledException)
-                    {
-                        throw;
-                    }
-                    catch (Exception e)
-                    {
-                        if (e.Message == "404-NotFound")
-                        {
-                            thumbData = await WebTools.httpRequestByteArry(Global.DEFAULT_IMAGE, cancellationToken);
-                        }
-                        else
-                        {
-                            System.Diagnostics.Debugger.Break();
-                            throw;
-                        }
-                    }
-                    thumbInMem = true;
-                }
+                thumbData = await GetThumbDataAsync();
+                thumbInMem= true;
             }
         }
 
-        public async Task loadImage(CancellationToken cancellationToken = new CancellationToken())
+        public void LoadImage(CancellationToken cancellationToken = new CancellationToken())
+        { Task t = LoadImageAsync(cancellationToken); }
+        public async Task LoadImageAsync(CancellationToken cancellationToken = new CancellationToken())
         {
             if (ext != "" && imageData == null)
             {
-                if (System.IO.File.Exists(getImagePath()) == true)
-                {
-                    Global.log(this, "Loading image from file '" + getImagePath() + "'");
-                    imageData = System.IO.File.ReadAllBytes(getImagePath());
-                    imageInMem = true;
-                    imageSaved = true;
-                }
-                else
-                {
-                    Global.log(this, "Loading image from web '" + getImagePath() + "'");
-                    try
-                    {
-                        imageData = await WebTools.httpRequestByteArry(
-                            Global.BASE_IMAGE_URL + thread.board + "/" + tim + ext, cancellationToken);
-                    }
-                    catch (TaskCanceledException)
-                    {
-
-                    }
-                    catch (Exception e)
-                    {
-                        if (e.Message == "404-NotFound")
-                        {
-                            imageData = await WebTools.httpRequestByteArry(
-                                Global.BACK_IMAGE_URL + thread.board + tim + ext, cancellationToken);
-                        }
-                        else
-                        {
-                            System.Diagnostics.Debugger.Break();
-                            throw;
-                        }
-                    }
-                    imageInMem = true;
-                }
+                imageData = await GetImageDataAsync();
+                imageInMem = true;
             }
         }
 
-        public async Task<byte[]> getThumbData()
+        public async Task<byte[]> GetThumbDataAsync()
         {
-            if (thumbSaved)
-            {
-                return System.IO.File.ReadAllBytes(getThumbPath());
-            }
-            else if (thumbInMem)
+            if (thumbInMem)
             {
                 return thumbData;
+            }
+            else if (thumbSaved || System.IO.File.Exists(ThumbPath))
+            {
+                thumbSaved = true;
+                return System.IO.File.ReadAllBytes(ThumbPath);
             }
             else
             {
@@ -235,70 +182,77 @@ namespace CloverLibrary
             }
         }
 
-        public async Task<byte[]> getImageData()
+        public async Task<byte[]> GetImageDataAsync()
         {
-            if(imageSaved)
-            {
-                return System.IO.File.ReadAllBytes(getImagePath());
-            }
-            else if (imageInMem)
+            if (imageInMem)
             {
                 return imageData;
             }
+            else if (imageSaved || System.IO.File.Exists(ImagePath))
+            {
+                imageSaved = true;
+                return System.IO.File.ReadAllBytes(ImagePath);
+            }
             else
             {
-                return await WebTools.httpRequestByteArry(
-                            Global.BASE_IMAGE_URL + thread.board + "/" + tim + ext);
+                try
+                {
+                    return await WebTools.httpRequestByteArry(Global.BASE_IMAGE_URL + thread.board + "/" + tim + ext);
+                }
+                catch (Exception)
+                {
+                    return await WebTools.httpRequestByteArry(Global.BACK_IMAGE_URL + thread.board + "/" + tim + ext);
+                }
             }
         }
 
-        public async Task saveThumb(string dir, CancellationToken cancellationToken = new CancellationToken())
+        public async Task SaveThumbAsync(string dir, CancellationToken cancellationToken = new CancellationToken())
         {
-            await loadThumb(cancellationToken);
+            await LoadThumbAsync(cancellationToken);
             if (ext != "" && thumbData != null)
             {
-                if (System.IO.File.Exists(getThumbPath()) == false)
+                if (System.IO.File.Exists(ThumbPath) == false)
                 {
-                    Global.log(this, "Saving thumb '" + getThumbPath() + "'");
-                    System.IO.File.WriteAllBytes(getThumbPath(), thumbData);
-                    System.IO.File.SetAttributes(getThumbPath(), System.IO.FileAttributes.ReadOnly);
+                    Global.Log(this, "Saving thumb '" + ThumbPath + "'");
+                    System.IO.File.WriteAllBytes(ThumbPath, thumbData);
+                    System.IO.File.SetAttributes(ThumbPath, System.IO.FileAttributes.ReadOnly);
                 }
                 else
                 {
-                    Global.log(this, "Thumb exists '" + getThumbPath() + "'");
+                    Global.Log(this, "Thumb exists '" + ThumbPath + "'");
                 }
                 thumbSaved = true;
-                clearThumbData();
+                ClearThumbData();
             }
         }
 
-        public async Task saveImage(string dir, CancellationToken cancellationToken = new CancellationToken())
+        public async Task SaveImageAsync(string dir, CancellationToken cancellationToken = new CancellationToken())
         {
             if (ext != "" && imageData != null)
             {
-                await loadImage(cancellationToken);
-                if (System.IO.File.Exists(getImagePath()) == false)
+                await LoadImageAsync(cancellationToken);
+                if (System.IO.File.Exists(ImagePath) == false)
                 {
-                    Global.log(this, "Saving image '" + getImagePath() + "'");
-                    System.IO.File.WriteAllBytes(getImagePath(), imageData);
-                    System.IO.File.SetAttributes(getImagePath(), System.IO.FileAttributes.ReadOnly);
+                    Global.Log(this, "Saving image '" + ImagePath + "'");
+                    System.IO.File.WriteAllBytes(ImagePath, imageData);
+                    System.IO.File.SetAttributes(ImagePath, System.IO.FileAttributes.ReadOnly);
                 } 
                 else
                 {
-                    Global.log(this, "Image exists '" + getImagePath() + "'");
+                    Global.Log(this, "Image exists '" + ImagePath + "'");
                 }
                 imageSaved = true;
-                clearImageData();
+                ClearImageData();
             }
         }
 
-        public void clearThumbData()
+        public void ClearThumbData()
         {
             thumbData = null;
             thumbInMem = false;
         }
 
-        public void clearImageData()
+        public void ClearImageData()
         {
             imageData = null;
             imageInMem = false;

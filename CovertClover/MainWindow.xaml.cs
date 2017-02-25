@@ -26,28 +26,13 @@ namespace CovertClover
         {
             InitializeComponent();
 
-            Task<List<CloverLibrary.ChanThread>> watchFileLoad = CloverLibrary.Global.watchFileLoad();
-            watchFileLoad.ContinueWith(t =>
+            foreach (CloverLibrary.ChanThread thread in CloverLibrary.Global.WatchFileLoad())
             {
-                switch (t.Status)
-                {
-                    case TaskStatus.RanToCompletion:
-                        foreach (CloverLibrary.ChanThread thread in t.Result)
-                        {
-                            thread.raiseUpdateThreadEvent += HandleUpdateThreadEvent;
-                            addThreadWatch(thread);
-                        }
-                        break;
-                    case TaskStatus.Canceled:
-                        break;
-                    case TaskStatus.Faulted:
-                        break;
-                    default:
-                        break;
-                }
-            }, TaskScheduler.FromCurrentSynchronizationContext());
+                thread.raiseUpdateThreadEvent += HandleUpdateThreadEvent;
+                addThreadWatch(thread);
+            }
 
-            Task<List<Tuple<string, string, string>>> boardListTask = CloverLibrary.Global.getBoardList();
+            Task<List<Tuple<string, string, string>>> boardListTask = CloverLibrary.Global.GetBoardListAsync();
             boardListTask.ContinueWith(t =>
             {
                 switch (t.Status)
@@ -99,9 +84,9 @@ namespace CovertClover
                 string board = ((Tuple<string, string, string>)((Button)sender).DataContext).Item1;
                 Title = board + " - " + ((Tuple<string, string, string>)((Button)sender).DataContext).Item2;
 
-                await CloverLibrary.Global.loadBoard(board, tokenSource.Token);
+                await CloverLibrary.Global.LoadBoardAsync(board, tokenSource.Token);
 
-                List<CloverLibrary.ChanThread> postList = CloverLibrary.Global.getBoard(board, tokenSource.Token);
+                List<CloverLibrary.ChanThread> postList = CloverLibrary.Global.GetBoard(board, tokenSource.Token);
                 foreach (CloverLibrary.ChanThread thread in postList)
                 {
                     try
@@ -181,7 +166,7 @@ namespace CovertClover
                 ThreadList.Children.Clear();
                 if (currentThread != 0)
                 {
-                    CloverLibrary.Global.getThread(currentThread).memoryClear(); 
+                    CloverLibrary.Global.GetThread(currentThread).MemoryClear(); 
                 }
                 ((ScrollViewer)ThreadList.Parent).ScrollToTop();
 
@@ -191,7 +176,7 @@ namespace CovertClover
                 currentThread = senderThread.id;
                 try
                 {
-                    await CloverLibrary.Global.loadThread(senderThread, tokenSource.Token);
+                    await senderThread.LoadThreadAsync(tokenSource.Token);
                 }
                 catch (Exception ex)
                 {
@@ -205,8 +190,8 @@ namespace CovertClover
                         throw;
                 }
 
-                bool senderThreadAutoRefresh = senderThread.autoRefresh;
-                senderThread.autoRefresh = false;
+                bool senderThreadAutoRefresh = senderThread.AutoRefresh;
+                senderThread.AutoRefresh = false;
                 foreach (CloverLibrary.ChanPost post in senderThread.postDictionary.Values)
                 {
                     try
@@ -226,7 +211,7 @@ namespace CovertClover
                         }
                     }
                 }
-                senderThread.autoRefresh = senderThreadAutoRefresh;
+                senderThread.AutoRefresh = senderThreadAutoRefresh;
             }
             catch (Exception ex)
             {
@@ -244,25 +229,26 @@ namespace CovertClover
                 string newBoard = matches[0].Groups[1].ToString();
                 int no = int.Parse(matches[0].Groups[2].ToString());
 
-                CloverLibrary.ChanThread newThread;
+                //CloverLibrary.ChanThread newThread;
 
-                try
-                {
-                    newThread = await CloverLibrary.Global.loadThread(newBoard, no);
-                }
-                catch (Exception ex)
-                {
-                    if (ex is TaskCanceledException)
-                        return;
-                    else if (ex.Message == "404-NotFound")
-                    {
-                        MessageBox.Show("Thread not found!");
-                        return;
-                    }
-                    else
-                        throw;
-                }
-                addThreadWatch(newThread);
+                //try
+                //{
+                //    newThread = await CloverLibrary.Global.loadThread(newBoard, no);
+                //}
+                //catch (Exception ex)
+                //{
+                //    if (ex is TaskCanceledException)
+                //        return;
+                //    else if (ex.Message == "404-NotFound")
+                //    {
+                //        MessageBox.Show("Thread not found!");
+                //        return;
+                //    }
+                //    else
+                //        throw;
+                //}
+                //addThreadWatch(newThread);
+                MessageBox.Show("Need to impelement this!");
             }
             else
             {
@@ -305,7 +291,7 @@ namespace CovertClover
             {
                 try
                 {
-                    await post.loadThumb();
+                    await post.LoadThumbAsync();
                 }
                 catch (System.Threading.Tasks.TaskCanceledException)
                 {
@@ -314,7 +300,7 @@ namespace CovertClover
 
                 BitmapImage source = new BitmapImage();
                 source.BeginInit();
-                source.StreamSource = new System.IO.MemoryStream(await post.getThumbData());
+                source.StreamSource = new System.IO.MemoryStream(await post.GetThumbDataAsync());
                 source.CacheOption = BitmapCacheOption.OnLoad;
                 source.EndInit();
                 source.Freeze();
@@ -358,7 +344,7 @@ namespace CovertClover
 
                 imageToolTip.Loaded += async (ls, le) =>
                 {
-                    await post.loadImage();
+                    await post.LoadImageAsync();
                     BitmapImage imageToolTipSource = new BitmapImage();
                     if (post.ext == ".gif" || post.ext == ".webm")
                     {
@@ -366,14 +352,14 @@ namespace CovertClover
                         {
                             if (post.imageSaved)
                             {
-                                ((MediaElement)toolTipImage).Source = new Uri(post.getImagePath());
-                                CloverLibrary.Global.log("Loading animated from file");
+                                ((MediaElement)toolTipImage).Source = new Uri(post.ImagePath);
+                                CloverLibrary.Global.Log("Loading animated from file");
                             }
                             else
                             {
                                 ((MediaElement)toolTipImage).Source = new Uri(
                                     CloverLibrary.Global.BASE_IMAGE_URL + post.thread.board + "/" + post.tim + post.ext);
-                                CloverLibrary.Global.log("Loading animated from web");
+                                CloverLibrary.Global.Log("Loading animated from web");
                             }
                             ((MediaElement)toolTipImage).Volume = 1;
                         }
@@ -386,7 +372,7 @@ namespace CovertClover
                     else
                     {
                         imageToolTipSource.BeginInit();
-                        imageToolTipSource.StreamSource = new System.IO.MemoryStream(await post.getImageData());
+                        imageToolTipSource.StreamSource = new System.IO.MemoryStream(await post.GetImageDataAsync());
                         imageToolTipSource.CacheOption = BitmapCacheOption.OnLoad;
                         imageToolTipSource.EndInit();
                         imageToolTipSource.Freeze();
@@ -535,15 +521,15 @@ namespace CovertClover
             expanderStackPanel.Orientation = Orientation.Vertical;
 
             autoReload.Content = "AutoReload";
-            autoReload.IsChecked = thread.autoRefresh;
-            autoReload.Unchecked += (s, e) => { autoSave.IsEnabled = false; autoSave.IsChecked = false; thread.autoRefresh = false; };
-            autoReload.Checked += (s, e) => { autoSave.IsEnabled = true; thread.autoRefresh = true; };
+            autoReload.IsChecked = thread.AutoRefresh;
+            autoReload.Unchecked += (s, e) => { autoSave.IsEnabled = false; autoSave.IsChecked = false; thread.AutoRefresh = false; };
+            autoReload.Checked += (s, e) => { autoSave.IsEnabled = true; thread.AutoRefresh = true; };
             expanderStackPanel.Children.Add(autoReload);
 
             autoSave.Content = "Auto-save images";
-            autoSave.IsChecked = thread.saveImages;
-            autoSave.Unchecked += (s, e) => { thread.saveImages = false; };
-            autoSave.Checked += (s, e) => { thread.saveImages = true; };
+            autoSave.IsChecked = thread.SaveImages;
+            autoSave.Unchecked += (s, e) => { thread.SaveImages = false; };
+            autoSave.Checked += (s, e) => { thread.SaveImages = true; };
             expanderStackPanel.Children.Add(autoSave);
 
             webButton.Content = "Web";
@@ -558,9 +544,9 @@ namespace CovertClover
             removeButton.Click += (s, e) => 
             {
                 ThreadWatchList.Children.Remove(expander);
-                thread.autoRefresh = false;
+                thread.AutoRefresh = false;
                 thread.autoRefreshThread.Abort();
-                CloverLibrary.Global.watchFileRemove(thread);
+                CloverLibrary.Global.WatchFileRemove(thread);
                 e.Handled = true;
             };
             removeButton.Foreground = Brushes.DarkRed;
@@ -568,20 +554,20 @@ namespace CovertClover
             expanderStackPanel.Children.Add(removeButton);
 
             ThreadWatchList.Children.Add(expander);
-            CloverLibrary.Global.watchFileAdd(thread);
+            CloverLibrary.Global.WatchFileAdd(thread);
         }
 
         public void HandleUpdateThreadEvent(object sender, CloverLibrary.UpdateThreadEventArgs args)
         {
             CloverLibrary.ChanThread senderThread = (CloverLibrary.ChanThread)sender;
 
-            switch (args.updateEvent)
+            switch (args.Update_Event)
             {
                 case CloverLibrary.UpdateThreadEventArgs.UpdateEvent.unknown:
                     MessageBox.Show("Unknown event!");
-                    if(args.context is Exception)
+                    if(args.Context is Exception)
                     {
-                        MessageBox.Show(((Exception)args.context).Message + "\n" + ((Exception)args.context).StackTrace);
+                        MessageBox.Show(((Exception)args.Context).Message + "\n" + ((Exception)args.Context).StackTrace);
                     }
                     System.Diagnostics.Debugger.Break();
                     break;
@@ -641,7 +627,7 @@ namespace CovertClover
                 }
 
             }));
-            thread.on404();
+            thread.On404();
         }
     }
 }

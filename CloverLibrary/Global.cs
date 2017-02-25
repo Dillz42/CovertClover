@@ -24,11 +24,19 @@ namespace CloverLibrary
 #else
         public const string SAVE_DIR = "D:\\Downloads\\PicsAndVids\\FromChan\\";
 #endif
+        
 
         private static SortedDictionary<int, ChanThread> threadDictionary = new SortedDictionary<int, ChanThread>();
         private static Mutex threadDictionaryMutex = new Mutex();
 
-        public async static Task<List<Tuple<string, string, string>>> getBoardList(CancellationToken cancellationToken = new CancellationToken())
+        public static void AddThread(ChanThread thread)
+        {
+            threadDictionaryMutex.WaitOne();
+            threadDictionary.Add(thread.id, thread);
+            threadDictionaryMutex.ReleaseMutex();
+        }
+
+        public async static Task<List<Tuple<string, string, string>>> GetBoardListAsync(CancellationToken cancellationToken = new CancellationToken())
         {
             List<Tuple<string, string, string>> retVal = new List<Tuple<string, string, string>>();
 
@@ -50,7 +58,7 @@ namespace CloverLibrary
             return retVal;
         }
 
-        public async static Task loadBoard(string board = "b", CancellationToken cancellationToken = new CancellationToken())
+        public async static Task LoadBoardAsync(string board = "b", CancellationToken cancellationToken = new CancellationToken())
         {
             string address = BASE_URL + board + "/catalog.json";
             JArray jsonArray = (JArray)await WebTools.httpRequestParse(address, JArray.Parse);
@@ -63,20 +71,20 @@ namespace CloverLibrary
                     {
                         ChanPost op = new ChanPost(jsonThread);
                         ChanThread thread = new ChanThread(board, op.no);
-                        thread.addPost(op);
+                        thread.AddPost(op);
                         threadDictionaryMutex.WaitOne();
                         threadDictionary.Add((int)jsonThread["no"], thread);
                         threadDictionaryMutex.ReleaseMutex();
                     }
                     else
                     {
-                        threadDictionary[(int)jsonThread["no"]].updateThread(jsonThread);
+                        threadDictionary[(int)jsonThread["no"]].UpdateThread();
                     }
                 }
             }
         }
 
-        public static List<ChanThread> getBoard(string board, CancellationToken cancellationToken = new CancellationToken())
+        public static List<ChanThread> GetBoard(string board, CancellationToken cancellationToken = new CancellationToken())
         {
             List<ChanThread> retVal = new List<ChanThread>();
 
@@ -97,55 +105,7 @@ namespace CloverLibrary
             return retVal;
         }
 
-        public async static Task loadThread(ChanThread thread, CancellationToken cancellationToken = new CancellationToken())
-        {
-            string address = BASE_URL + thread.board + "/thread/" + thread.id + ".json";
-            JObject jsonObject = (JObject)await WebTools.httpRequestParse(address, JObject.Parse);
-
-            foreach (JObject jsonPost in (JArray)jsonObject["posts"])
-            {
-                ChanPost post = new ChanPost(jsonPost);
-                if (thread.postDictionary.ContainsKey(post.no) == false)
-                {
-                    try
-                    {
-                        thread.addPost(post);
-                        jsonPost.Remove("last_replies");
-                    }
-                    catch (Exception ex)
-                    {
-                        System.Diagnostics.Debugger.Break();
-                        throw;
-                    }
-
-                    Regex regex = new Regex("<a href=\"#p(?<reply>\\d+)\" class=\"quotelink\">>>\\d+</a>");
-                    MatchCollection matches = regex.Matches(post.com);
-                    foreach (Match match in matches)
-                    {
-                        int replyTo = int.Parse(match.Groups["reply"].ToString());
-                        thread.postDictionary[replyTo].addReplyNum(post.no);
-                    }
-                    post.com = regex.Replace(post.com, ">>$1");
-                }
-                else
-                {
-                    thread.postDictionary[post.no].update(post);
-                }
-            }
-        }
-
-        public async static Task<ChanThread> loadThread(string board, int no, bool autoReload = false, bool saveImages = false, string title = "unknown",
-            CancellationToken cancellationToken = new CancellationToken())
-        {
-            ChanThread retVal = new ChanThread(board, no, title);
-            threadDictionary.Add(no, retVal);
-            await loadThread(retVal, cancellationToken);
-            retVal.autoRefresh = autoReload;
-            retVal.saveImages = saveImages;
-            return retVal;
-        }
-
-        public static ChanThread getThread(int threadNumber, string board = "b", CancellationToken cancellationToken = new CancellationToken())
+        public static ChanThread GetThread(int threadNumber, string board = "b", CancellationToken cancellationToken = new CancellationToken())
         {
             return threadDictionary[threadNumber];
         }
@@ -165,14 +125,14 @@ namespace CloverLibrary
 
         private static Mutex watchFileMutex = new Mutex();
 
-        public static void watchFileAdd(ChanThread thread)
+        public static void WatchFileAdd(ChanThread thread)
         {
             watchFileMutex.WaitOne();
             string fileContent = System.IO.File.ReadAllText(WATCH_FILE_PATH);
             if (fileContent.Contains(thread.id.ToString()))
             {
                 fileContent = Regex.Replace(fileContent, thread.id + "\t" + "\\w\\w", 
-                    thread.id.ToString() + "\t" + (thread.autoRefresh ? "R" : "r") + (thread.saveImages ? "I" : "i"));
+                    thread.id.ToString() + "\t" + (thread.AutoRefresh ? "R" : "r") + (thread.SaveImages ? "I" : "i"));
                 System.IO.File.WriteAllText(WATCH_FILE_PATH, fileContent);
             }
             else
@@ -180,14 +140,14 @@ namespace CloverLibrary
                 using (System.IO.StreamWriter writer = System.IO.File.AppendText(WATCH_FILE_PATH))
                 {
                     writer.WriteLine(thread.board + "/" + thread.id + "\t" + 
-                        (thread.autoRefresh ? "R" : "r") + (thread.saveImages ? "I" : "i") + 
+                        (thread.AutoRefresh ? "R" : "r") + (thread.SaveImages ? "I" : "i") + 
                         "\t" + thread.threadName);
                 }
             }
             watchFileMutex.ReleaseMutex();
         }
 
-        public static void watchFileRemove(ChanThread thread)
+        public static void WatchFileRemove(ChanThread thread)
         {
             watchFileMutex.WaitOne();
             string fileContent = System.IO.File.ReadAllText(WATCH_FILE_PATH);
@@ -196,13 +156,13 @@ namespace CloverLibrary
             watchFileMutex.ReleaseMutex();
         }
 
-        public async static Task<List<ChanThread>> watchFileLoad()
+        public static List<ChanThread> WatchFileLoad()
         {
             List<ChanThread> retVal = new List<ChanThread>();
             if (System.IO.File.Exists(WATCH_FILE_PATH))
             {
                 string fileContent = System.IO.File.ReadAllText(WATCH_FILE_PATH);
-                MatchCollection matches = Regex.Matches(fileContent, "(\\w+)/(\\d+)\t(\\w)(\\w)(.*)");
+                MatchCollection matches = Regex.Matches(fileContent, "(\\w+)/(\\d+)\t(\\w)(\\w)\t([^\r]*)");
                 foreach (Match match in matches)
                 {
                     System.Diagnostics.Debug.WriteLine("Loading thread: " +
@@ -211,9 +171,11 @@ namespace CloverLibrary
 
                     try
                     {
-                        await loadThread(match.Groups[1].ToString(), int.Parse(match.Groups[2].ToString()),
-                                        match.Groups[3].ToString() == "R", match.Groups[4].ToString() == "I",
-                                        match.Groups[5].ToString());
+                        ChanThread thread = new ChanThread(match.Groups[1].ToString(), int.Parse(match.Groups[2].ToString()), match.Groups[5].ToString());
+                        thread.SaveImages = (match.Groups[4].ToString() == "I");
+                        thread.AutoRefresh = (match.Groups[3].ToString() == "R");
+
+                        AddThread(thread);
                     }
                     catch (Exception ex)
                     {
@@ -237,7 +199,7 @@ namespace CloverLibrary
         }
 
         static Mutex logMutex = new Mutex();
-        public static void log(string message,
+        public static void Log(string message,
             [System.Runtime.CompilerServices.CallerMemberName] string memberName = "",
             [System.Runtime.CompilerServices.CallerFilePath] string sourceFilePath = "",
             [System.Runtime.CompilerServices.CallerLineNumber] int sourceLineNumber = 0)
@@ -245,25 +207,28 @@ namespace CloverLibrary
             string logMessage = DateTime.Now.ToString("yyyy-MM-dd-HH:mm:ss:ffff") + "|" + 
                 sourceFilePath.Substring(sourceFilePath.LastIndexOf('\\') + 1) + "|" + 
                 memberName + "|" + sourceLineNumber + "|" + message + "\n";
-            System.Diagnostics.Debug.WriteLine(logMessage);
+            if (System.Diagnostics.Debugger.IsAttached)
+            {
+                System.Diagnostics.Debug.WriteLine(logMessage); 
+            }
             logMutex.WaitOne();
             System.IO.File.AppendAllText(LOG_FILE, logMessage);
             logMutex.ReleaseMutex();
         }
-        public static void log(ChanThread thread, string message,
+        public static void Log(ChanThread thread, string message,
             [System.Runtime.CompilerServices.CallerMemberName] string memberName = "",
             [System.Runtime.CompilerServices.CallerFilePath] string sourceFilePath = "",
             [System.Runtime.CompilerServices.CallerLineNumber] int sourceLineNumber = 0)
         {
-            log(thread.id + ": " + message, memberName, sourceFilePath, sourceLineNumber);
+            Log(thread.id + ": " + message, memberName, sourceFilePath, sourceLineNumber);
         }
-        public static void log(ChanPost post, string message,
+        public static void Log(ChanPost post, string message,
             [System.Runtime.CompilerServices.CallerMemberName] string memberName = "",
             [System.Runtime.CompilerServices.CallerFilePath] string sourceFilePath = "",
             [System.Runtime.CompilerServices.CallerLineNumber] int sourceLineNumber = 0)
         {
             System.Diagnostics.StackTrace t = new System.Diagnostics.StackTrace();
-            log(post.thread.id + "-" + post.no + ": " + message, memberName, sourceFilePath, sourceLineNumber);
+            Log(post.thread.id + "-" + post.no + ": " + message, memberName, sourceFilePath, sourceLineNumber);
         }
     }
 }
