@@ -52,7 +52,7 @@ namespace CloverLibrary
         public string semantic_url;
 
         public List<int> replyList = new List<int>();
-        public void addReplyNum(int reply)
+        public void AddReplyNum(int reply)
         {
             if (replyList.Contains(reply) == false)
             {
@@ -74,7 +74,7 @@ namespace CloverLibrary
         {
             
         }
-        public ChanPost(JObject jsonObject)
+        public ChanPost(JObject jsonObject, ChanThread thread)
         {
             no = (int)(jsonObject["no"] ?? 0);
             resto = (int)(jsonObject["resto"] ?? 0);
@@ -117,6 +117,12 @@ namespace CloverLibrary
             
             com = com.Replace("<br>", "\n");
             com = System.Net.WebUtility.HtmlDecode(com);
+
+            this.thread = thread;
+            if (System.IO.File.Exists(ImagePath))
+            {
+                imageSaved = true;
+            }
 
             json = jsonObject;
         }
@@ -177,7 +183,7 @@ namespace CloverLibrary
             }
             else
             {
-                return await WebTools.httpRequestByteArry(
+                return await WebTools.HttpRequestByteArryAsync(
                             Global.BASE_IMAGE_URL + thread.board + "/" + tim + "s.jpg");
             }
         }
@@ -197,11 +203,11 @@ namespace CloverLibrary
             {
                 try
                 {
-                    return await WebTools.httpRequestByteArry(Global.BASE_IMAGE_URL + thread.board + "/" + tim + ext);
+                    return await WebTools.HttpRequestByteArryAsync(Global.BASE_IMAGE_URL + thread.board + "/" + tim + ext);
                 }
                 catch (Exception)
                 {
-                    return await WebTools.httpRequestByteArry(Global.BACK_IMAGE_URL + thread.board + "/" + tim + ext);
+                    return await WebTools.HttpRequestByteArryAsync(Global.BACK_IMAGE_URL + thread.board + "/" + tim + ext);
                 }
             }
         }

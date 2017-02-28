@@ -28,7 +28,7 @@ namespace CovertClover
 
             foreach (CloverLibrary.ChanThread thread in CloverLibrary.Global.WatchFileLoad())
             {
-                thread.raiseUpdateThreadEvent += HandleUpdateThreadEvent;
+                thread.RaiseUpdateThreadEvent += HandleUpdateThreadEvent;
                 addThreadWatch(thread);
             }
 
@@ -40,17 +40,21 @@ namespace CovertClover
                     case TaskStatus.RanToCompletion:
                         foreach (var board in t.Result)
                         {
-                            Button boardButton = new Button();
-                            boardButton.MinWidth = 100;
-                            boardButton.Margin = new Thickness(1);
-                            boardButton.Content = board.Item1;
+                            Button boardButton = new Button()
+                            {
+                                MinWidth = 100,
+                                Margin = new Thickness(1),
+                                Content = board.Item1,
+                                DataContext = board,
+                            };
                             boardButton.Click += BoardButton_Click;
-                            boardButton.DataContext = board;
                             BoardList.Children.Add(boardButton);
 
-                            ToolTip toolTip = new ToolTip();
-                            toolTip.Content = board.Item2 + "\n" + board.Item3;
-                            toolTip.Placement = System.Windows.Controls.Primitives.PlacementMode.Right;
+                            ToolTip toolTip = new ToolTip()
+                            {
+                                Content = board.Item2 + "\n" + board.Item3,
+                                Placement = System.Windows.Controls.Primitives.PlacementMode.Right
+                            };
                             ToolTipService.SetToolTip(boardButton, toolTip);
                         }
                         break;
@@ -91,7 +95,7 @@ namespace CovertClover
                 {
                     try
                     {
-                        thread.raiseUpdateThreadEvent += HandleUpdateThreadEvent;
+                        thread.RaiseUpdateThreadEvent += HandleUpdateThreadEvent;
                         if(thread.postDictionary.Count == 0)
                         {
                             continue;
@@ -268,22 +272,28 @@ namespace CovertClover
             System.Threading.CancellationToken token = new System.Threading.CancellationToken())
         {
             Grid retVal = new Grid();
-            ColumnDefinition col1 = new ColumnDefinition();
-            col1.Width = GridLength.Auto;
+            ColumnDefinition col1 = new ColumnDefinition()
+            {
+                Width = GridLength.Auto
+            };
             retVal.ColumnDefinitions.Add(col1);
-            ColumnDefinition col2 = new ColumnDefinition();
-            col2.Width = new GridLength(1, GridUnitType.Star);
+            ColumnDefinition col2 = new ColumnDefinition()
+            {
+                Width = new GridLength(1, GridUnitType.Star)
+            };
             retVal.ColumnDefinitions.Add(col2);
             retVal.RowDefinitions.Add(new RowDefinition());
             retVal.RowDefinitions.Add(new RowDefinition());
             retVal.RowDefinitions.Add(new RowDefinition());
             retVal.RowDefinitions.Add(new RowDefinition());
 
-            TextBlock textBlockSubject = new TextBlock();
-            textBlockSubject.FontSize = 14;
-            textBlockSubject.Text = post.thread.board + "/" + post.no + ((post.sub == "") ? ("") : (" - " + post.sub)) +
-                " - " + post.now + (post.resto == 0 ? " - R: " + post.replies + " / I: " + post.images : "");
-            textBlockSubject.TextWrapping = TextWrapping.Wrap;
+            TextBlock textBlockSubject = new TextBlock()
+            {
+                FontSize = 14,
+                Text = post.thread.board + "/" + post.no + ((post.sub == "") ? ("") : (" - " + post.sub)) +
+                " - " + post.now + (post.resto == 0 ? " - R: " + post.replies + " / I: " + post.images : ""),
+                TextWrapping = TextWrapping.Wrap
+            };
             setGrid(textBlockSubject, colSpan: 2);
             retVal.Children.Add(textBlockSubject);
 
@@ -313,9 +323,11 @@ namespace CovertClover
 
                 if (post.replyList.Count > 0)
                 {
-                    TextBlock replyTextBlock = new TextBlock();
-                    replyTextBlock.Foreground = Brushes.Blue;
-                    replyTextBlock.TextWrapping = TextWrapping.Wrap;
+                    TextBlock replyTextBlock = new TextBlock()
+                    {
+                        Foreground = Brushes.Blue,
+                        TextWrapping = TextWrapping.Wrap
+                    };
                     foreach (int replyFrom in post.replyList)
                     {
                         replyTextBlock.Text += ">" + replyFrom + "  ";
@@ -327,16 +339,6 @@ namespace CovertClover
                 ToolTip imageToolTip = new ToolTip();
                 StackPanel toolTipStackPanel = new StackPanel();
                 TextBlock toolTipTextBlock = new TextBlock();
-                FrameworkElement toolTipImage;
-                if (post.ext == ".gif" || post.ext == ".webm")
-                {
-                    toolTipImage = new MediaElement();
-                }
-                else
-                {
-                    toolTipImage = new Image();
-                }
-
                 toolTipStackPanel.Orientation = Orientation.Vertical;
 
                 toolTipTextBlock.Text = post.tim + "-" + post.filename + post.ext + " - " + post.w + " x " + post.h;
@@ -344,45 +346,69 @@ namespace CovertClover
 
                 imageToolTip.Loaded += async (ls, le) =>
                 {
-                    await post.LoadImageAsync();
-                    BitmapImage imageToolTipSource = new BitmapImage();
                     if (post.ext == ".gif" || post.ext == ".webm")
                     {
+                        MediaElement toolTipImage = new MediaElement();
                         try
                         {
                             if (post.imageSaved)
                             {
-                                ((MediaElement)toolTipImage).Source = new Uri(post.ImagePath);
+                                toolTipImage.Source = new Uri(post.ImagePath);
                                 CloverLibrary.Global.Log("Loading animated from file");
                             }
                             else
                             {
-                                ((MediaElement)toolTipImage).Source = new Uri(
+                                toolTipImage.Source = new Uri(
                                     CloverLibrary.Global.BASE_IMAGE_URL + post.thread.board + "/" + post.tim + post.ext);
                                 CloverLibrary.Global.Log("Loading animated from web");
                             }
-                            ((MediaElement)toolTipImage).Volume = 1;
+                            toolTipImage.Volume = 1;
                         }
                         catch (Exception ex)
                         {
                             MessageBox.Show(ex.Message + "\n\n" + ex.StackTrace);
                             throw;
                         }
+                        double workingHeight = SystemParameters.WorkArea.Height * .85;
+                        toolTipImage.MaxWidth = post.w > SystemParameters.WorkArea.Width ? SystemParameters.WorkArea.Width : post.w;
+                        toolTipImage.MaxHeight = post.h > workingHeight ? workingHeight : post.h;
+
+                        toolTipStackPanel.Children.Add(toolTipImage);
                     }
                     else
                     {
+                        Image toolTipImage = new Image();
+                        BitmapImage imageToolTipSource = new BitmapImage();
+                        await post.LoadImageAsync(token);
                         imageToolTipSource.BeginInit();
                         imageToolTipSource.StreamSource = new System.IO.MemoryStream(await post.GetImageDataAsync());
                         imageToolTipSource.CacheOption = BitmapCacheOption.OnLoad;
                         imageToolTipSource.EndInit();
                         imageToolTipSource.Freeze();
-                        ((Image)toolTipImage).Source = imageToolTipSource;
+                        toolTipImage.Source = imageToolTipSource;
+
+                        double workingHeight = SystemParameters.WorkArea.Height * .85;
+                        toolTipImage.MaxWidth = post.w > SystemParameters.WorkArea.Width ? SystemParameters.WorkArea.Width : post.w;
+                        toolTipImage.MaxHeight = post.h > workingHeight ? workingHeight : post.h;
+
+                        toolTipStackPanel.Children.Add(toolTipImage);
                     }
-                    double workingHeight = SystemParameters.WorkArea.Height * .85;
-                    toolTipImage.MaxWidth = post.w > SystemParameters.WorkArea.Width ? SystemParameters.WorkArea.Width : post.w;
-                    toolTipImage.MaxHeight = post.h > workingHeight ? workingHeight : post.h;
                 };
-                toolTipStackPanel.Children.Add(toolTipImage);
+                imageToolTip.Unloaded += (uls, ule) =>
+                {
+                    CloverLibrary.Global.Log(post, "Unloading from closing tooltip");
+                    try
+                    {
+                        toolTipStackPanel.Children.Remove(toolTipStackPanel.Children.OfType<Image>().First());
+                    } catch (InvalidOperationException ex) {if (ex.Message != "Sequence contains no elements"){throw;}}
+                    try
+                    {
+                        toolTipStackPanel.Children.Remove(toolTipStackPanel.Children.OfType<MediaElement>().First());
+                    }
+                    catch (InvalidOperationException ex) { if (ex.Message != "Sequence contains no elements") { throw; } }
+
+                    post.ClearImageData();
+                };
                 imageToolTip.Content = toolTipStackPanel;
                 ToolTipService.SetShowDuration(img, int.MaxValue);
                 ToolTipService.SetInitialShowDelay(img, 0);
@@ -391,8 +417,11 @@ namespace CovertClover
                 retVal.Children.Add(img); 
             }
 
-            TextBlock textBlockComment = new TextBlock();
-            textBlockComment.FontSize = 14;
+            TextBlock textBlockComment = new TextBlock()
+            {
+                FontSize = 14,
+                TextWrapping = TextWrapping.Wrap
+            };
             char[] delim = { '\n' };
             string[] lines = post.com.Split(delim);
             foreach (string line in lines)
@@ -457,17 +486,17 @@ namespace CovertClover
                 //    textBlockComment.Inlines.Add(new Run(line + "\n"));
                 //}
             }
-                textBlockComment.TextWrapping = TextWrapping.Wrap;
             setGrid(textBlockComment, column: 1, row: 2);
             retVal.Children.Add(textBlockComment);
             
             if (post.resto == 0)
             {
-                Button button = new Button();
-
-                button.HorizontalContentAlignment = HorizontalAlignment.Left;
-                button.Content = retVal;
-                button.Margin = new Thickness(2);
+                Button button = new Button()
+                {
+                    HorizontalContentAlignment = HorizontalAlignment.Left,
+                    Content = retVal,
+                    Margin = new Thickness(2)
+                };
                 button.Click += (cs, ce) =>
                 {
                     addThreadWatch(post.thread);
@@ -477,10 +506,12 @@ namespace CovertClover
             }
             else
             {
-                Separator seperator = new Separator();
-                seperator.Foreground = Brushes.Blue;
-                seperator.Background = Brushes.Green;
-                seperator.BorderBrush = Brushes.Pink;
+                Separator seperator = new Separator()
+                {
+                    Foreground = Brushes.Blue,
+                    Background = Brushes.Green,
+                    BorderBrush = Brushes.Pink
+                };
                 setGrid(seperator, row: 3, colSpan: 2);
                 retVal.Children.Add(seperator);
 
@@ -490,57 +521,92 @@ namespace CovertClover
 
         private void addThreadWatch(CloverLibrary.ChanThread thread)
         {
-            //Button threadButton = new Button();
-            //StackPanel threadStackPanel = new StackPanel();
-            Button title = new Button();
-            Expander expander = new Expander();
-            StackPanel expanderStackPanel = new StackPanel();
-            CheckBox autoReload = new CheckBox();
-            CheckBox autoSave = new CheckBox();
-            Button webButton = new Button();
-            Button removeButton = new Button();
-            
-            title.Content = thread.board + "/" + thread.id+ " - " + thread.threadName;
-            title.HorizontalContentAlignment = HorizontalAlignment.Left;
-            title.FlowDirection = FlowDirection.LeftToRight;
-            title.Background = Brushes.DarkGreen;
-            title.Foreground = Brushes.DarkGreen;
+            Button title = new Button()
+            {
+                Content = thread.board + "/" + thread.id + " - " + thread.threadName,
+                HorizontalContentAlignment = HorizontalAlignment.Left,
+                FlowDirection = FlowDirection.LeftToRight,
+                Background = Brushes.DarkGreen,
+                Foreground = Brushes.DarkGreen,
+                Margin = new Thickness(3)
+            };
             title.Click += ThreadButton_Click;
-            ToolTip titleToolTip = new ToolTip();
-            titleToolTip.Content = title.Content;
-            title.Margin = new Thickness(3);
+
+            ToolTip titleToolTip = new ToolTip()
+            {
+                Content = title.Content
+            };
             ToolTipService.SetToolTip(title, titleToolTip);
 
-            expanderStackPanel.FlowDirection = FlowDirection.LeftToRight;
+            StackPanel expanderStackPanel = new StackPanel()
+            {
+                FlowDirection = FlowDirection.LeftToRight,
+                Orientation = Orientation.Vertical
+            };
 
-            expander.DataContext = thread;
-            expander.Content = expanderStackPanel;
-            expander.FlowDirection = FlowDirection.RightToLeft;
-            expander.Header = title;
-            expander.Margin = new Thickness(2);
-            expanderStackPanel.Orientation = Orientation.Vertical;
+            Expander expander = new Expander()
+            {
+                DataContext = thread,
+                Content = expanderStackPanel,
+                FlowDirection = FlowDirection.RightToLeft,
+                Header = title,
+                Margin = new Thickness(2)
+            };
 
-            autoReload.Content = "AutoReload";
-            autoReload.IsChecked = thread.AutoRefresh;
-            autoReload.Unchecked += (s, e) => { autoSave.IsEnabled = false; autoSave.IsChecked = false; thread.AutoRefresh = false; };
-            autoReload.Checked += (s, e) => { autoSave.IsEnabled = true; thread.AutoRefresh = true; };
-            expanderStackPanel.Children.Add(autoReload);
-
-            autoSave.Content = "Auto-save images";
-            autoSave.IsChecked = thread.SaveImages;
+            CheckBox autoSave = new CheckBox()
+            {
+                Content = "Auto-save images",
+                IsChecked = thread.SaveImages
+            };
             autoSave.Unchecked += (s, e) => { thread.SaveImages = false; };
             autoSave.Checked += (s, e) => { thread.SaveImages = true; };
+
+            CheckBox autoReload = new CheckBox()
+            {
+                Content = "AutoReload",
+                IsChecked = thread.AutoRefresh
+            };
+            autoReload.Unchecked += (s, e) => { autoSave.IsEnabled = false; autoSave.IsChecked = false; thread.AutoRefresh = false; };
+            autoReload.Checked += (s, e) => { autoSave.IsEnabled = true; thread.AutoRefresh = true; };
+
+            expanderStackPanel.Children.Add(autoReload);
             expanderStackPanel.Children.Add(autoSave);
 
-            webButton.Content = "Web";
+            Grid webFileGrid = new Grid();
+            webFileGrid.ColumnDefinitions.Add(new ColumnDefinition() { Width = new GridLength(1, GridUnitType.Star) });
+            webFileGrid.ColumnDefinitions.Add(new ColumnDefinition() { Width = new GridLength(1, GridUnitType.Star) });
+            expanderStackPanel.Children.Add(webFileGrid);
+
+            Button webButton = new Button()
+            {
+                Content = "Web",
+                Margin = new Thickness(3)
+            };
             webButton.Click += (s, e) =>
             {
                 System.Diagnostics.Process.Start("http://boards.4chan.org/" + thread.board + "/thread/" + thread.id);
             };
-            webButton.Margin = new Thickness(3);
-            expanderStackPanel.Children.Add(webButton);
+            Grid.SetColumn(webButton, 0);
+            webFileGrid.Children.Add(webButton);
 
-            removeButton.Content = "Remove";
+            Button fileButton = new Button()
+            {
+                Content = "Folder",
+                Margin = new Thickness(3)
+            };
+            fileButton.Click += (s, e) =>
+            {
+                System.Diagnostics.Process.Start(thread.GetDir());
+            };
+            Grid.SetColumn(fileButton, 1);
+            webFileGrid.Children.Add(fileButton);
+
+            Button removeButton = new Button()
+            {
+                Content = "Remove",
+                Foreground = Brushes.DarkRed,
+                Margin = new Thickness(3)
+            };
             removeButton.Click += (s, e) => 
             {
                 ThreadWatchList.Children.Remove(expander);
@@ -549,8 +615,6 @@ namespace CovertClover
                 CloverLibrary.Global.WatchFileRemove(thread);
                 e.Handled = true;
             };
-            removeButton.Foreground = Brushes.DarkRed;
-            removeButton.Margin = new Thickness(3);
             expanderStackPanel.Children.Add(removeButton);
 
             ThreadWatchList.Children.Add(expander);

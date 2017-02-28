@@ -11,7 +11,7 @@ namespace CloverLibrary
     class WebTools
     {
         private static Semaphore webRequestSemaphore = new Semaphore(2, 10);
-        public static async Task<byte[]> httpRequestByteArry(string url,
+        public static async Task<byte[]> HttpRequestByteArryAsync(string url,
             CancellationToken cancellationToken = new CancellationToken())
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -33,7 +33,7 @@ namespace CloverLibrary
             }
         }
 
-        public static async Task<string> httpRequest(string url,
+        public static async Task<string> HttpRequestAsync(string url,
             CancellationToken cancellationToken = new CancellationToken())
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -55,12 +55,12 @@ namespace CloverLibrary
             }
         }
 
-        public static async Task<object> httpRequestParse(string url, Func<string, object> parse,
+        public static async Task<object> HttpRequestParseAsync(string url, Func<string, object> parse,
             CancellationToken cancellationToken = new CancellationToken())
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            string str = await httpRequest(url, cancellationToken);
+            string str = await HttpRequestAsync(url, cancellationToken);
             return parse(str);
         }
     }

@@ -57,10 +57,10 @@ namespace CloverLibrary
             }
         }
 
-        public event EventHandler<UpdateThreadEventArgs> raiseUpdateThreadEvent;
+        public event EventHandler<UpdateThreadEventArgs> RaiseUpdateThreadEvent;
         protected virtual void OnRaiseUpdateThreadEvent(UpdateThreadEventArgs e)
         {
-            raiseUpdateThreadEvent?.Invoke(this, e);
+            RaiseUpdateThreadEvent?.Invoke(this, e);
         }
 
         public ChanThread(string board, int id, string title = "")
@@ -162,11 +162,11 @@ namespace CloverLibrary
         public async Task UpdateThreadAsync()
         {
             string address = Global.BASE_URL + board + "/thread/" + id + ".json";
-            JObject jsonObject = (JObject)await WebTools.httpRequestParse(address, JObject.Parse);
+            JObject jsonObject = (JObject)await WebTools.HttpRequestParseAsync(address, JObject.Parse);
 
             foreach (JObject jsonPost in (JArray)jsonObject["posts"])
             {
-                ChanPost post = new ChanPost(jsonPost);
+                ChanPost post = new ChanPost(jsonPost, this);
                 if (postDictionary.ContainsKey(post.no) == false)
                 {
                     try
@@ -185,7 +185,7 @@ namespace CloverLibrary
                     foreach (Match match in matches)
                     {
                         int replyTo = int.Parse(match.Groups["reply"].ToString());
-                        postDictionary[replyTo].addReplyNum(post.no);
+                        postDictionary[replyTo].AddReplyNum(post.no);
                     }
                     post.com = regex.Replace(post.com, ">>$1");
                 }

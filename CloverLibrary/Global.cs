@@ -43,7 +43,7 @@ namespace CloverLibrary
             JArray boardList =
                 (JArray)(
                     (JObject)(
-                        await WebTools.httpRequestParse(BASE_URL + "boards.json", JObject.Parse, cancellationToken)
+                        await WebTools.HttpRequestParseAsync(BASE_URL + "boards.json", JObject.Parse, cancellationToken)
                     )
                 )["boards"];
 
@@ -61,7 +61,7 @@ namespace CloverLibrary
         public async static Task LoadBoardAsync(string board = "b", CancellationToken cancellationToken = new CancellationToken())
         {
             string address = BASE_URL + board + "/catalog.json";
-            JArray jsonArray = (JArray)await WebTools.httpRequestParse(address, JArray.Parse);
+            JArray jsonArray = (JArray)await WebTools.HttpRequestParseAsync(address, JArray.Parse);
 
             foreach (JObject boardPage in jsonArray)
             {
@@ -69,8 +69,8 @@ namespace CloverLibrary
                 {
                     if (threadDictionary.ContainsKey((int)jsonThread["no"]) == false)
                     {
-                        ChanPost op = new ChanPost(jsonThread);
-                        ChanThread thread = new ChanThread(board, op.no);
+                        ChanThread thread = new ChanThread(board, (int)jsonThread["no"]);
+                        ChanPost op = new ChanPost(jsonThread, thread);
                         thread.AddPost(op);
                         threadDictionaryMutex.WaitOne();
                         threadDictionary.Add((int)jsonThread["no"], thread);
@@ -171,10 +171,11 @@ namespace CloverLibrary
 
                     try
                     {
-                        ChanThread thread = new ChanThread(match.Groups[1].ToString(), int.Parse(match.Groups[2].ToString()), match.Groups[5].ToString());
-                        thread.SaveImages = (match.Groups[4].ToString() == "I");
-                        thread.AutoRefresh = (match.Groups[3].ToString() == "R");
-
+                        ChanThread thread = new ChanThread(match.Groups[1].ToString(), int.Parse(match.Groups[2].ToString()), match.Groups[5].ToString())
+                        {
+                            SaveImages = (match.Groups[4].ToString() == "I"),
+                            AutoRefresh = (match.Groups[3].ToString() == "R")
+                        };
                         AddThread(thread);
                     }
                     catch (Exception ex)
