@@ -32,7 +32,7 @@
                         <ColumnDefinition Width="auto"/>
                     </Grid.ColumnDefinitions>
                     <TextBox Name="addThreadTextBox" Grid.Column="0">board/id</TextBox>
-                    <Button Grid.Column="1" Content="Add" Click="addThreadButton_Click"/>
+                    <Button Grid.Column="1" Content="Add" Click="AddThreadButton_Click"/>
                 </Grid>
                 <Separator/>
             </StackPanel>

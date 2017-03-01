@@ -48,7 +48,7 @@ namespace CloverLibrary
             return retVal;
         }
 
-        public async static Task<List<ChanThread>> GetBoard(string board, CancellationToken cancellationToken = new CancellationToken())
+        public async static Task<List<ChanThread>> GetBoardAsync(string board, CancellationToken cancellationToken = new CancellationToken())
         {
             List<ChanThread> retVal = new List<ChanThread>();
             string address = BASE_URL + board + "/catalog.json";

@@ -147,11 +147,11 @@ namespace CloverLibrary
             }
         }
 
-        public void LoadThreadAsync(CancellationToken cancellationToken = new CancellationToken())
+        public void LoadThread(CancellationToken cancellationToken = new CancellationToken())
         {
-            Task t = LoadThread(cancellationToken);
+            Task t = LoadThreadAsync(cancellationToken);
         }
-        public async Task LoadThread(CancellationToken cancellationToken = new CancellationToken())
+        public async Task LoadThreadAsync(CancellationToken cancellationToken = new CancellationToken())
         {
             LoadThreadFile();
             await UpdateThreadAsync();
@@ -204,7 +204,7 @@ namespace CloverLibrary
                         AddPost(post);
                         jsonPost.Remove("last_replies");
                     }
-                    catch (Exception ex)
+                    catch (Exception)
                     {
                         System.Diagnostics.Debugger.Break();
                         throw;

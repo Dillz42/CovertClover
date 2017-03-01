@@ -29,7 +29,7 @@ namespace CovertClover
             foreach (CloverLibrary.ChanThread thread in CloverLibrary.Global.WatchFileLoad())
             {
                 thread.RaiseUpdateThreadEvent += HandleUpdateThreadEvent;
-                addThreadWatch(thread);
+                AddThreadWatch(thread);
             }
 
             Task<List<Tuple<string, string, string>>> boardListTask = CloverLibrary.Global.GetBoardListAsync();
@@ -88,7 +88,7 @@ namespace CovertClover
                 string board = ((Tuple<string, string, string>)((Button)sender).DataContext).Item1;
                 Title = board + " - " + ((Tuple<string, string, string>)((Button)sender).DataContext).Item2;
 
-                List<CloverLibrary.ChanThread> postList = await CloverLibrary.Global.GetBoard(board, tokenSource.Token);
+                List<CloverLibrary.ChanThread> postList = await CloverLibrary.Global.GetBoardAsync(board, tokenSource.Token);
                 foreach (CloverLibrary.ChanThread thread in postList)
                 {
                     try
@@ -98,7 +98,7 @@ namespace CovertClover
                         {
                             continue;
                         }
-                        UIElement threadElement = await convertPostToUIElement(thread.postDictionary.Values.First());
+                        UIElement threadElement = await ConvertPostToUIElementAsync(thread.postDictionary.Values.First());
                         if (tokenSource.IsCancellationRequested)
                         {
                             return;
@@ -178,7 +178,7 @@ namespace CovertClover
                 currentThread = senderThread;
                 try
                 {
-                    await senderThread.LoadThread(tokenSource.Token);
+                    await senderThread.LoadThreadAsync(tokenSource.Token);
                 }
                 catch (Exception ex)
                 {
@@ -186,7 +186,7 @@ namespace CovertClover
                         return;
                     else if (ex.Message == "404-NotFound")
                     {
-                        thread404(senderThread);
+                        Thread404(senderThread);
                     }
                     else
                         throw;
@@ -198,7 +198,7 @@ namespace CovertClover
                 {
                     try
                     {
-                        ThreadList.Children.Add(await convertPostToUIElement(post, tokenSource.Token));
+                        ThreadList.Children.Add(await ConvertPostToUIElementAsync(post, tokenSource.Token));
                     }
                     catch (Exception ex)
                     {
@@ -222,7 +222,7 @@ namespace CovertClover
             }
         }
 
-        public async void addThreadButton_Click(object sender, RoutedEventArgs e)
+        public async void AddThreadButton_Click(object sender, RoutedEventArgs e)
         {
             Regex regex = new Regex("(\\w+)/(\\d+)");
             if(regex.IsMatch(addThreadTextBox.Text))
@@ -235,7 +235,7 @@ namespace CovertClover
 
                 try
                 {
-                    await newThread.LoadThread();
+                    await newThread.LoadThreadAsync();
                 }
                 catch (Exception ex)
                 {
@@ -249,7 +249,7 @@ namespace CovertClover
                     else
                         throw;
                 }
-                addThreadWatch(newThread);
+                AddThreadWatch(newThread);
             }
             else
             {
@@ -257,7 +257,7 @@ namespace CovertClover
             }
         }
 
-        private void setGrid(UIElement element, int column = 0, int row = 0, int colSpan = 1, int rowSpan = 1)
+        private void SetGrid(UIElement element, int column = 0, int row = 0, int colSpan = 1, int rowSpan = 1)
         {
             Grid.SetColumn(element, column);
             Grid.SetRow(element, row);
@@ -265,7 +265,7 @@ namespace CovertClover
             Grid.SetRowSpan(element, rowSpan);
         }
 
-        private async Task<UIElement> convertPostToUIElement(CloverLibrary.ChanPost post, 
+        private async Task<UIElement> ConvertPostToUIElementAsync(CloverLibrary.ChanPost post, 
             System.Threading.CancellationToken token = new System.Threading.CancellationToken())
         {
             Grid retVal = new Grid();
@@ -291,7 +291,7 @@ namespace CovertClover
                 " - " + post.now + (post.resto == 0 ? " - R: " + post.replies + " / I: " + post.images : ""),
                 TextWrapping = TextWrapping.Wrap
             };
-            setGrid(textBlockSubject, colSpan: 2);
+            SetGrid(textBlockSubject, colSpan: 2);
             retVal.Children.Add(textBlockSubject);
 
             if (post.ext != "")
@@ -312,12 +312,13 @@ namespace CovertClover
                 source.EndInit();
                 source.Freeze();
 
-                Image img = new Image();
-                img.Source = source;
-                img.MaxWidth = post.tn_w;
-                img.HorizontalAlignment = HorizontalAlignment.Left;
-                img.VerticalAlignment = VerticalAlignment.Top;
-
+                Image img = new Image()
+                {
+                    Source = source,
+                    MaxWidth = post.tn_w,
+                    HorizontalAlignment = HorizontalAlignment.Left,
+                    VerticalAlignment = VerticalAlignment.Top
+                };
                 if (post.replyList.Count > 0)
                 {
                     TextBlock replyTextBlock = new TextBlock()
@@ -329,7 +330,7 @@ namespace CovertClover
                     {
                         replyTextBlock.Text += ">" + replyFrom + "  ";
                     }
-                    setGrid(replyTextBlock, row: 1, colSpan: 2);
+                    SetGrid(replyTextBlock, row: 1, colSpan: 2);
                     retVal.Children.Add(replyTextBlock);
                 }
 
@@ -408,7 +409,7 @@ namespace CovertClover
                 ToolTipService.SetShowDuration(img, int.MaxValue);
                 ToolTipService.SetInitialShowDelay(img, 0);
                 ToolTipService.SetToolTip(img, imageToolTip);
-                setGrid(img, row: 2);
+                SetGrid(img, row: 2);
                 retVal.Children.Add(img); 
             }
 
@@ -481,7 +482,7 @@ namespace CovertClover
                 //    textBlockComment.Inlines.Add(new Run(line + "\n"));
                 //}
             }
-            setGrid(textBlockComment, column: 1, row: 2);
+            SetGrid(textBlockComment, column: 1, row: 2);
             retVal.Children.Add(textBlockComment);
             
             if (post.resto == 0)
@@ -494,7 +495,7 @@ namespace CovertClover
                 };
                 button.Click += (cs, ce) =>
                 {
-                    addThreadWatch(post.thread);
+                    AddThreadWatch(post.thread);
                 };
 
                 return button; 
@@ -507,14 +508,14 @@ namespace CovertClover
                     Background = Brushes.Green,
                     BorderBrush = Brushes.Pink
                 };
-                setGrid(seperator, row: 3, colSpan: 2);
+                SetGrid(seperator, row: 3, colSpan: 2);
                 retVal.Children.Add(seperator);
 
                 return retVal;
             }
         }
 
-        private void addThreadWatch(CloverLibrary.ChanThread thread)
+        private void AddThreadWatch(CloverLibrary.ChanThread thread)
         {
             Button title = new Button()
             {
@@ -631,7 +632,7 @@ namespace CovertClover
                     System.Diagnostics.Debugger.Break();
                     break;
                 case CloverLibrary.UpdateThreadEventArgs.UpdateEvent.thread404:
-                    thread404(senderThread);
+                    Thread404(senderThread);
                     break;
                 case CloverLibrary.UpdateThreadEventArgs.UpdateEvent.newPosts:
                     if (currentThread != null && currentThread.id == senderThread.id)
@@ -640,7 +641,7 @@ namespace CovertClover
                         {
                             ThreadList.Dispatcher.BeginInvoke((Action)(async () =>
                             {
-                                ThreadList.Children.Add(await convertPostToUIElement(post));
+                                ThreadList.Children.Add(await ConvertPostToUIElementAsync(post));
                             }));
                         } 
                     }
@@ -670,7 +671,7 @@ namespace CovertClover
             }
         }
 
-        public void thread404(CloverLibrary.ChanThread thread)
+        public void Thread404(CloverLibrary.ChanThread thread)
         {
             ThreadWatchList.Dispatcher.BeginInvoke((Action)(() =>
             {
