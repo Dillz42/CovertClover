@@ -592,7 +592,10 @@ namespace CovertClover
             };
             fileButton.Click += (s, e) =>
             {
-                System.Diagnostics.Process.Start(thread.GetDir());
+                if (System.IO.Directory.Exists(thread.GetDir()))
+                {
+                    System.Diagnostics.Process.Start(thread.GetDir());
+                }
             };
             Grid.SetColumn(fileButton, 1);
             webFileGrid.Children.Add(fileButton);
