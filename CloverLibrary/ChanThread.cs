@@ -153,22 +153,48 @@ namespace CloverLibrary
         }
         public async Task LoadThread(CancellationToken cancellationToken = new CancellationToken())
         {
-            await LoadThreadFileAsync();
+            LoadThreadFile();
             await UpdateThreadAsync();
         }
 
-        public async Task LoadThreadFileAsync(CancellationToken cancellationToken = new CancellationToken())
+        public void LoadThreadFile(CancellationToken cancellationToken = new CancellationToken())
         {
-            
+            string[] folders = System.IO.Directory.GetDirectories(Global.SAVE_DIR);
+            string threadDir = folders.Where(s => s.Contains(id.ToString()) == true).Last();
+
+            if (System.IO.File.Exists(threadDir + "\\thread.json"))
+            {
+                string fileContent = System.IO.File.ReadAllText(threadDir + "\\thread.json");
+                JArray jsonArray = (JArray)JObject.Parse(fileContent)["posts"];
+                AddPostsFromJsonArray(jsonArray);
+            }
         }
 
         public void UpdateThread() { Task t = UpdateThreadAsync(); }
         public async Task UpdateThreadAsync()
         {
-            string address = Global.BASE_URL + board + "/thread/" + id + ".json";
-            JObject jsonObject = (JObject)await WebTools.HttpRequestParseAsync(address, JObject.Parse);
+            try
+            {
+                string address = Global.BASE_URL + board + "/thread/" + id + ".json";
+                JObject jsonObject = (JObject)await WebTools.HttpRequestParseAsync(address, JObject.Parse);
+                AddPostsFromJsonArray((JArray)jsonObject["posts"]);
+            }
+            catch (Exception ex)
+            {
+                if (ex.Message == "404-NotFound" && postDictionary.Count != 0)
+                {
+                    On404();
+                }
+                else
+                {
+                    throw;
+                }
+            }
+        }
 
-            foreach (JObject jsonPost in (JArray)jsonObject["posts"])
+        public void AddPostsFromJsonArray(JArray jsonArray)
+        {
+            foreach (JObject jsonPost in jsonArray)
             {
                 ChanPost post = new ChanPost(jsonPost, this);
                 if (postDictionary.ContainsKey(post.no) == false)
