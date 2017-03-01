@@ -25,17 +25,7 @@ namespace CloverLibrary
         public const string SAVE_DIR = "D:\\Downloads\\PicsAndVids\\FromChan\\";
 #endif
         
-
-        private static SortedDictionary<int, ChanThread> threadDictionary = new SortedDictionary<int, ChanThread>();
-        private static Mutex threadDictionaryMutex = new Mutex();
-
-        public static void AddThread(ChanThread thread)
-        {
-            threadDictionaryMutex.WaitOne();
-            threadDictionary.Add(thread.id, thread);
-            threadDictionaryMutex.ReleaseMutex();
-        }
-
+        
         public async static Task<List<Tuple<string, string, string>>> GetBoardListAsync(CancellationToken cancellationToken = new CancellationToken())
         {
             List<Tuple<string, string, string>> retVal = new List<Tuple<string, string, string>>();
@@ -58,56 +48,25 @@ namespace CloverLibrary
             return retVal;
         }
 
-        public async static Task LoadBoardAsync(string board = "b", CancellationToken cancellationToken = new CancellationToken())
+        public async static Task<List<ChanThread>> GetBoard(string board, CancellationToken cancellationToken = new CancellationToken())
         {
+            List<ChanThread> retVal = new List<ChanThread>();
             string address = BASE_URL + board + "/catalog.json";
-            JArray jsonArray = (JArray)await WebTools.HttpRequestParseAsync(address, JArray.Parse);
+            JArray jsonArray = (JArray)await WebTools.HttpRequestParseAsync(address, JArray.Parse, cancellationToken);
 
             foreach (JObject boardPage in jsonArray)
             {
                 foreach (JObject jsonThread in boardPage["threads"])
                 {
-                    if (threadDictionary.ContainsKey((int)jsonThread["no"]) == false)
-                    {
-                        ChanThread thread = new ChanThread(board, (int)jsonThread["no"]);
-                        ChanPost op = new ChanPost(jsonThread, thread);
-                        thread.AddPost(op);
-                        threadDictionaryMutex.WaitOne();
-                        threadDictionary.Add((int)jsonThread["no"], thread);
-                        threadDictionaryMutex.ReleaseMutex();
-                    }
-                    else
-                    {
-                        threadDictionary[(int)jsonThread["no"]].UpdateThread();
-                    }
+                    ChanThread thread = new ChanThread(board, (int)jsonThread["no"]);
+                    ChanPost op = new ChanPost(jsonThread, thread);
+                    thread.AddPost(op);
+                    retVal.Add(thread);
                 }
             }
-        }
 
-        public static List<ChanThread> GetBoard(string board, CancellationToken cancellationToken = new CancellationToken())
-        {
-            List<ChanThread> retVal = new List<ChanThread>();
-
-            threadDictionaryMutex.WaitOne();
-            foreach (var post in threadDictionary)
-            {
-                if(cancellationToken.IsCancellationRequested)
-                {
-                    break;
-                }
-                if (post.Value.board == board)
-                {
-                    retVal.Add(post.Value);
-                }
-            }
-            threadDictionaryMutex.ReleaseMutex();
             retVal.Sort();
             return retVal;
-        }
-
-        public static ChanThread GetThread(int threadNumber, string board = "b", CancellationToken cancellationToken = new CancellationToken())
-        {
-            return threadDictionary[threadNumber];
         }
 
         public static string MakeSafeFilename(string filename, char replaceChar = '_')
@@ -176,7 +135,7 @@ namespace CloverLibrary
                             SaveImages = (match.Groups[4].ToString() == "I"),
                             AutoRefresh = (match.Groups[3].ToString() == "R")
                         };
-                        AddThread(thread);
+                        retVal.Add(thread);
                     }
                     catch (Exception ex)
                     {
@@ -187,14 +146,10 @@ namespace CloverLibrary
                         else
                         {
                             System.Diagnostics.Debugger.Break();
-                            throw; 
+                            throw;
                         }
                     }
                 } 
-            }
-            foreach (ChanThread thread in threadDictionary.Values)
-            {
-                retVal.Add(thread);
             }
             return retVal;
         }

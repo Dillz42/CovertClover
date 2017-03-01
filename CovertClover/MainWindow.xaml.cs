@@ -21,7 +21,7 @@ namespace CovertClover
     public partial class MainWindow : Window
     {
         List<CancellationTokenSource> tokenSourceList = new List<CancellationTokenSource>();
-        private int currentThread;
+        private CloverLibrary.ChanThread currentThread;
         public MainWindow()
         {
             InitializeComponent();
@@ -88,9 +88,7 @@ namespace CovertClover
                 string board = ((Tuple<string, string, string>)((Button)sender).DataContext).Item1;
                 Title = board + " - " + ((Tuple<string, string, string>)((Button)sender).DataContext).Item2;
 
-                await CloverLibrary.Global.LoadBoardAsync(board, tokenSource.Token);
-
-                List<CloverLibrary.ChanThread> postList = CloverLibrary.Global.GetBoard(board, tokenSource.Token);
+                List<CloverLibrary.ChanThread> postList = await CloverLibrary.Global.GetBoard(board, tokenSource.Token);
                 foreach (CloverLibrary.ChanThread thread in postList)
                 {
                     try
@@ -168,19 +166,19 @@ namespace CovertClover
                 tokenSourceList.Add(tokenSource);
 
                 ThreadList.Children.Clear();
-                if (currentThread != 0)
+                if(currentThread != null)
                 {
-                    CloverLibrary.Global.GetThread(currentThread).MemoryClear(); 
+                    currentThread.MemoryClear(); 
                 }
                 ((ScrollViewer)ThreadList.Parent).ScrollToTop();
 
                 CloverLibrary.ChanThread senderThread = ((CloverLibrary.ChanThread)((Button)sender).DataContext);
                 Title = senderThread.board + "/" + senderThread.id + " - " + senderThread.threadName;
                 ((Button)sender).Content = Regex.Replace(((Button)sender).Content.ToString(), "\\(\\d+\\) - (.*)", "$1");
-                currentThread = senderThread.id;
+                currentThread = senderThread;
                 try
                 {
-                    await senderThread.LoadThreadAsync(tokenSource.Token);
+                    await senderThread.LoadThread(tokenSource.Token);
                 }
                 catch (Exception ex)
                 {
@@ -233,26 +231,25 @@ namespace CovertClover
                 string newBoard = matches[0].Groups[1].ToString();
                 int no = int.Parse(matches[0].Groups[2].ToString());
 
-                //CloverLibrary.ChanThread newThread;
+                CloverLibrary.ChanThread newThread = new CloverLibrary.ChanThread(newBoard, no);
 
-                //try
-                //{
-                //    newThread = await CloverLibrary.Global.loadThread(newBoard, no);
-                //}
-                //catch (Exception ex)
-                //{
-                //    if (ex is TaskCanceledException)
-                //        return;
-                //    else if (ex.Message == "404-NotFound")
-                //    {
-                //        MessageBox.Show("Thread not found!");
-                //        return;
-                //    }
-                //    else
-                //        throw;
-                //}
-                //addThreadWatch(newThread);
-                MessageBox.Show("Need to impelement this!");
+                try
+                {
+                    await newThread.LoadThread();
+                }
+                catch (Exception ex)
+                {
+                    if (ex is TaskCanceledException)
+                        return;
+                    else if (ex.Message == "404-NotFound")
+                    {
+                        MessageBox.Show("Thread not found!");
+                        return;
+                    }
+                    else
+                        throw;
+                }
+                addThreadWatch(newThread);
             }
             else
             {
@@ -396,16 +393,14 @@ namespace CovertClover
                 };
                 imageToolTip.Unloaded += (uls, ule) =>
                 {
-                    CloverLibrary.Global.Log(post, "Unloading from closing tooltip");
-                    try
+                    if (toolTipStackPanel.Children.OfType<Image>().Count() == 1)
                     {
                         toolTipStackPanel.Children.Remove(toolTipStackPanel.Children.OfType<Image>().First());
-                    } catch (InvalidOperationException ex) {if (ex.Message != "Sequence contains no elements"){throw;}}
-                    try
+                    }
+                    if (toolTipStackPanel.Children.OfType<MediaElement>().Count() == 1)
                     {
                         toolTipStackPanel.Children.Remove(toolTipStackPanel.Children.OfType<MediaElement>().First());
                     }
-                    catch (InvalidOperationException ex) { if (ex.Message != "Sequence contains no elements") { throw; } }
 
                     post.ClearImageData();
                 };
@@ -639,7 +634,7 @@ namespace CovertClover
                     thread404(senderThread);
                     break;
                 case CloverLibrary.UpdateThreadEventArgs.UpdateEvent.newPosts:
-                    if (currentThread == senderThread.id)
+                    if (currentThread != null && currentThread.id == senderThread.id)
                     {
                         foreach (CloverLibrary.ChanPost post in args.postList)
                         {

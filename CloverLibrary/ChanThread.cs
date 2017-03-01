@@ -147,7 +147,11 @@ namespace CloverLibrary
             }
         }
 
-        public async Task LoadThreadAsync(CancellationToken cancellationToken = new CancellationToken())
+        public void LoadThreadAsync(CancellationToken cancellationToken = new CancellationToken())
+        {
+            Task t = LoadThread(cancellationToken);
+        }
+        public async Task LoadThread(CancellationToken cancellationToken = new CancellationToken())
         {
             await LoadThreadFileAsync();
             await UpdateThreadAsync();
