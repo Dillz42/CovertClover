@@ -205,9 +205,16 @@ namespace CloverLibrary
                 {
                     return await WebTools.HttpRequestByteArryAsync(Global.BASE_IMAGE_URL + thread.board + "/" + tim + ext);
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
-                    return await WebTools.HttpRequestByteArryAsync(Global.BACK_IMAGE_URL + thread.board + "/" + tim + ext);
+                    try
+                    {
+                        return await WebTools.HttpRequestByteArryAsync(Global.BACK_IMAGE_URL + thread.board + "/" + tim + ext);
+                    }
+                    catch (Exception ex2)
+                    {
+                        return await WebTools.HttpRequestByteArryAsync(Global.DEFAULT_IMAGE);
+                    }
                 }
             }
         }

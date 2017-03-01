@@ -10,7 +10,7 @@ namespace CloverLibrary
 {
     class WebTools
     {
-        private static Semaphore webRequestSemaphore = new Semaphore(2, 10);
+        //private static Semaphore webRequestSemaphore = new Semaphore(2, 10);
         public static async Task<byte[]> HttpRequestByteArryAsync(string url,
             CancellationToken cancellationToken = new CancellationToken())
         {
@@ -18,9 +18,9 @@ namespace CloverLibrary
 
             using (var client = new System.Net.Http.HttpClient())
             {
-                webRequestSemaphore.WaitOne();
+                //webRequestSemaphore.WaitOne();
                 System.Net.Http.HttpResponseMessage response = await client.GetAsync(url, cancellationToken);
-                webRequestSemaphore.Release();
+                //webRequestSemaphore.Release();
                 if (response.IsSuccessStatusCode)
                 {
                     return await response.Content.ReadAsByteArrayAsync();
@@ -40,9 +40,9 @@ namespace CloverLibrary
 
             using (var client = new System.Net.Http.HttpClient())
             {
-                webRequestSemaphore.WaitOne();
+                //webRequestSemaphore.WaitOne();
                 System.Net.Http.HttpResponseMessage response = await client.GetAsync(url, cancellationToken);
-                webRequestSemaphore.Release();
+                //webRequestSemaphore.Release();
                 if (response.IsSuccessStatusCode)
                 {
                     return await response.Content.ReadAsStringAsync();
